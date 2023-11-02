@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -17,23 +19,35 @@ const (
 type ConfigManager struct {
 	configFileUsed string
 	configType     ConfigType
-	autoEnvEnabled bool
 	envPrefix      string
 	mapConfig      map[string]any
 	defaultConfig  map[string]any
+	envConfig      map[string]string
 }
 
 var (
 	ErrConfigFileNotFound = errors.New("config File Not Found")
-	defaultConfigManager  = NewConfigManager()
+	defaultConfigManager  = NewConfigManager(true)
 )
 
-func NewConfigManager() *ConfigManager {
-	return &ConfigManager{}
-}
-
-func AutoMaticEnv(enabled bool) {
-	defaultConfigManager.autoEnvEnabled = enabled
+func NewConfigManager(automaticEnv bool) *ConfigManager {
+	cm := ConfigManager{}
+	cm.envConfig = make(map[string]string)
+	cm.mapConfig = make(map[string]any)
+	cm.defaultConfig = make(map[string]any)
+	cm.envPrefix = ""
+	envSet := os.Environ()
+	for _, env := range envSet {
+		kv := strings.Split(env, "=")
+		cm.envConfig[kv[0]] = kv[1]
+		lowerKey := strings.ToLower(kv[0])
+		if cm.envConfig[lowerKey] == "" {
+			// if the key is not set, set it as the lower case of the key
+			// but don't clobber any existing, more specific (already lowercase) value
+			cm.envConfig[lowerKey] = kv[1]
+		}
+	}
+	return &cm
 }
 
 func (c *ConfigManager) ConfigFileUsed() string {
