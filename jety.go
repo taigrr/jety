@@ -41,7 +41,10 @@ type (
 	}
 )
 
-var ErrConfigFileNotFound = errors.New("config File Not Found")
+var (
+	ErrConfigFileNotFound = errors.New("config file not found")
+	ErrConfigFileEmpty    = errors.New("config file is empty")
+)
 
 func NewConfigManager() *ConfigManager {
 	cm := ConfigManager{}
@@ -181,9 +184,12 @@ func (c *ConfigManager) ReadInConfig() error {
 
 func readFile(filename string, fileType configType) (map[string]any, error) {
 	fileData := make(map[string]any)
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
+	if d, err := os.Stat(filename); os.IsNotExist(err) {
 		return nil, ErrConfigFileNotFound
+	} else if d.Size() == 0 {
+		return nil, ErrConfigFileEmpty
 	}
+
 	switch fileType {
 	case ConfigTypeTOML:
 		_, err := toml.DecodeFile(filename, &fileData)
