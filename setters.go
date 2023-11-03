@@ -34,7 +34,7 @@ func (c *ConfigManager) SetDefault(key string, value any) {
 	lower := strings.ToLower(key)
 	c.defaultConfig[lower] = ConfigMap{Key: key, Value: value}
 	if _, ok := c.mapConfig[lower]; !ok {
-		if envVal, ok := c.envConfig[lower]; !ok {
+		if envVal, ok := c.envConfig[lower]; ok {
 			c.mapConfig[lower] = envVal
 			c.combinedConfig[lower] = envVal
 		} else {
