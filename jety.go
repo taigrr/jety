@@ -107,6 +107,10 @@ func (c *ConfigManager) collapse() {
 func (c *ConfigManager) WriteConfig() error {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
+	flattenedConfig := make(map[string]any)
+	for _, v := range c.combinedConfig {
+		flattenedConfig[v.Key] = v.Value
+	}
 	switch c.configType {
 	case ConfigTypeTOML:
 		f, err := os.Create(c.configFileUsed)
@@ -115,7 +119,7 @@ func (c *ConfigManager) WriteConfig() error {
 		}
 		defer f.Close()
 		enc := toml.NewEncoder(f)
-		err = enc.Encode(c.combinedConfig)
+		err = enc.Encode(flattenedConfig)
 		return err
 	case ConfigTypeYAML:
 		f, err := os.Create(c.configFileUsed)
@@ -124,7 +128,7 @@ func (c *ConfigManager) WriteConfig() error {
 		}
 		defer f.Close()
 		enc := yaml.NewEncoder(f)
-		err = enc.Encode(c.combinedConfig)
+		err = enc.Encode(flattenedConfig)
 		return err
 	case ConfigTypeJSON:
 		f, err := os.Create(c.configFileUsed)
@@ -133,7 +137,7 @@ func (c *ConfigManager) WriteConfig() error {
 		}
 		defer f.Close()
 		enc := json.NewEncoder(f)
-		return enc.Encode(c.combinedConfig)
+		return enc.Encode(flattenedConfig)
 	default:
 		return fmt.Errorf("config type %s not supported", c.configType)
 	}
