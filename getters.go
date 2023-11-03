@@ -143,6 +143,8 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 		}
 	}
 	switch val := v.Value.(type) {
+	case []string:
+		return val
 	case []any:
 		var ret []string
 		for _, v := range val {
@@ -200,6 +202,8 @@ func (c *ConfigManager) GetIntSlice(key string) []int {
 		}
 	}
 	switch val := v.Value.(type) {
+	case []int:
+		return val
 	case []any:
 		var ret []int
 		for _, v := range val {
