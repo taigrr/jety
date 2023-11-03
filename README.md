@@ -1,6 +1,6 @@
 # JETY
 
-JSON, ENV, YAML, TOML
+JSON, ENV, TOML, YAML
 
 This is a package for collapsing multiple configuration stores (env+json, env+yaml, env+toml) and writing them back to a centralized config.
 
