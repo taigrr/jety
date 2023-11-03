@@ -175,6 +175,7 @@ func (c *ConfigManager) ReadInConfig() error {
 		conf[lower] = ConfigMap{Key: k, Value: v}
 	}
 	c.mapConfig = conf
+	c.collapse()
 	return nil
 }
 
