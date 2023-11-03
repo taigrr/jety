@@ -273,20 +273,6 @@ func (c *ConfigManager) SetEnvPrefix(prefix string) {
 	c.envPrefix = prefix
 }
 
-func (c *ConfigManager) Set(key string, value any) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	lower := strings.ToLower(key)
-	c.mapConfig[lower] = ConfigMap{Key: key, Value: value}
-}
-
-func (c *ConfigManager) SetDefault(key string, value any) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	lower := strings.ToLower(key)
-	c.defaultConfig[lower] = ConfigMap{Key: key, Value: value}
-}
-
 func (c *ConfigManager) GetIntSlice(key string) []int {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()

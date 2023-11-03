@@ -6,18 +6,4 @@ This is a package for collapsing multiple configuration stores (env+json, env+ya
 
 It should behave similarly to the AutomaticEnv functionality of viper, but without some of the extra heft of the depedendencies it carries.
 
-
-.AutomaticEnv
-.ConfigFileUsed
-.GetDuration
-.GetString
-.GetStringMap
-.GetStringSlice
-.ReadInConfig
-.SetConfigFile
-.SetConfigName
-.SetConfigType
-.SetDefault
-.Set("privkey", string
-viper.ConfigFileNotFoundError); ok {
-.WriteConfig
+The inital purpose of this repo is to support the configuration requirements of [grlx](http://github.com/gogrlx/grlx), but development may continue to expand until more viper use cases and functionality are covered.
