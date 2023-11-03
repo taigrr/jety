@@ -28,6 +28,7 @@ type (
 
 	ConfigManager struct {
 		configName       string
+		configPath       string
 		configFileUsed   string
 		configType       configType
 		envPrefix        string
@@ -199,6 +200,12 @@ func readFile(filename string, fileType configType) (map[string]any, error) {
 	default:
 		return nil, fmt.Errorf("config type %s not supported", fileType)
 	}
+}
+
+func (c *ConfigManager) SetConfigDir(path string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.configPath = name
 }
 
 func (c *ConfigManager) SetConfigName(name string) {
