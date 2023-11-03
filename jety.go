@@ -205,7 +205,7 @@ func readFile(filename string, fileType configType) (map[string]any, error) {
 func (c *ConfigManager) SetConfigDir(path string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.configPath = name
+	c.configPath = path
 }
 
 func (c *ConfigManager) SetConfigName(name string) {
