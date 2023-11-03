@@ -37,6 +37,8 @@ func (c *ConfigManager) SetDefault(key string, value any) {
 		if envVal, ok := c.envConfig[lower]; !ok {
 			c.mapConfig[lower] = envVal
 			c.combinedConfig[lower] = envVal
+		} else {
+			c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
 		}
 	}
 }
