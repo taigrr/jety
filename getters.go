@@ -143,8 +143,17 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 		}
 	}
 	switch val := v.Value.(type) {
-	case []string:
-		return val
+	case []any:
+		var ret []string
+		for _, v := range val {
+			switch v := v.(type) {
+			case string:
+				ret = append(ret, v)
+			default:
+				ret = append(ret, fmt.Sprintf("%v", v))
+			}
+		}
+		return ret
 	default:
 		return nil
 	}
@@ -191,8 +200,29 @@ func (c *ConfigManager) GetIntSlice(key string) []int {
 		}
 	}
 	switch val := v.Value.(type) {
-	case []int:
-		return val
+	case []any:
+		var ret []int
+		for _, v := range val {
+			switch v := v.(type) {
+			case int:
+				ret = append(ret, v)
+			case string:
+				i, err := strconv.Atoi(v)
+				if err != nil {
+					continue
+				}
+				ret = append(ret, i)
+			case float32:
+				ret = append(ret, int(v))
+			case float64:
+				ret = append(ret, int(v))
+			case nil:
+				continue
+			default:
+				continue
+			}
+		}
+		return ret
 	default:
 		return nil
 	}
