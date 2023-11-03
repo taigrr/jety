@@ -162,8 +162,6 @@ func (c *ConfigManager) SetEnvPrefix(prefix string) {
 }
 
 func (c *ConfigManager) ReadInConfig() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
 	// assume config = map[string]any
 	confFileData, err := readFile(c.configFileUsed, c.configType)
 	if err != nil {
@@ -174,7 +172,9 @@ func (c *ConfigManager) ReadInConfig() error {
 		lower := strings.ToLower(k)
 		conf[lower] = ConfigMap{Key: k, Value: v}
 	}
+	c.mutex.Lock()
 	c.mapConfig = conf
+	c.mutex.Unlock()
 	c.collapse()
 	return nil
 }
