@@ -58,6 +58,23 @@ func NewConfigManager() *ConfigManager {
 	return &cm
 }
 
+func (c *ConfigManager) WithEnvPrefix(prefix string) *ConfigManager {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.envPrefix = prefix
+	envSet := os.Environ()
+	c.envConfig = make(map[string]ConfigMap)
+	for _, env := range envSet {
+		kv := strings.Split(env, "=")
+		if strings.HasPrefix(kv[0], prefix) {
+			withoutPrefix := strings.TrimPrefix(kv[0], prefix)
+			lower := strings.ToLower(withoutPrefix)
+			c.envConfig[lower] = ConfigMap{Key: withoutPrefix, Value: kv[1]}
+		}
+	}
+	return c
+}
+
 func (c *ConfigManager) ConfigFileUsed() string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
