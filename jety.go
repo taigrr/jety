@@ -12,35 +12,37 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type configType string
-
 const (
 	ConfigTypeTOML configType = "toml"
 	ConfigTypeYAML configType = "yaml"
 	ConfigTypeJSON configType = "json"
 )
 
-type ConfigMap struct {
-	Key   string
-	Value any
-}
+type (
+	configType string
 
-type ConfigManager struct {
-	configName       string
-	configFileUsed   string
-	configType       configType
-	envPrefix        string
-	mapConfig        map[string]ConfigMap
-	defaultConfig    map[string]ConfigMap
-	envConfig        map[string]ConfigMap
-	combinedConfig   map[string]ConfigMap
-	mutex            sync.RWMutex
-	explicitDefaults bool
-}
+	ConfigMap struct {
+		Key   string
+		Value any
+	}
+
+	ConfigManager struct {
+		configName       string
+		configFileUsed   string
+		configType       configType
+		envPrefix        string
+		mapConfig        map[string]ConfigMap
+		defaultConfig    map[string]ConfigMap
+		envConfig        map[string]ConfigMap
+		combinedConfig   map[string]ConfigMap
+		mutex            sync.RWMutex
+		explicitDefaults bool
+	}
+)
 
 var ErrConfigFileNotFound = errors.New("config File Not Found")
 
-func NewConfigManager(automaticEnv bool) *ConfigManager {
+func NewConfigManager() *ConfigManager {
 	cm := ConfigManager{}
 	cm.envConfig = make(map[string]ConfigMap)
 	cm.mapConfig = make(map[string]ConfigMap)

@@ -2,7 +2,7 @@ package config
 
 import "time"
 
-var defaultConfigManager = NewConfigManager(true)
+var defaultConfigManager = NewConfigManager()
 
 func GetIntSlice(key string) []int {
 	return defaultConfigManager.GetIntSlice(key)
