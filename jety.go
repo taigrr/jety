@@ -181,6 +181,9 @@ func (c *ConfigManager) ReadInConfig() error {
 
 func readFile(filename string, fileType configType) (map[string]any, error) {
 	fileData := make(map[string]any)
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return nil, ErrConfigFileNotFound
+	}
 	switch fileType {
 	case ConfigTypeTOML:
 		_, err := toml.DecodeFile(filename, &fileData)
