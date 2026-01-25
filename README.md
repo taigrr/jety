@@ -52,6 +52,56 @@ func main() {
 - **Thread-safe**: Safe for concurrent access
 - **Config precedence**: config file > environment > defaults
 
+## Nested Configuration
+
+For nested config structures like:
+
+```toml
+[services.cloud]
+var = "xyz"
+timeout = "30s"
+
+[services.cloud.auth]
+client_id = "abc123"
+```
+
+Access nested values using `GetStringMap` and type assertions:
+
+```go
+services := jety.GetStringMap("services")
+cloud := services["cloud"].(map[string]any)
+varValue := cloud["var"].(string)  // "xyz"
+
+// For deeper nesting
+auth := cloud["auth"].(map[string]any)
+clientID := auth["client_id"].(string)  // "abc123"
+```
+
+### Environment Variable Overrides
+
+Environment variables use uppercase keys. For nested config, the env var name is the key in uppercase:
+
+```bash
+# Override top-level key
+export PORT=9000
+
+# For nested keys, use the full key name in uppercase
+export SERVICES_CLOUD_VAR=override_value
+```
+
+With a prefix:
+
+```go
+cm := jety.NewConfigManager().WithEnvPrefix("MYAPP_")
+```
+
+```bash
+export MYAPP_PORT=9000
+export MYAPP_SERVICES_CLOUD_VAR=override_value
+```
+
+**Note**: Environment variables override defaults but config files take highest precedence.
+
 ## Migration Guide
 
 ### From v0.x to v1.x
