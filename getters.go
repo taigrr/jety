@@ -35,29 +35,19 @@ func (c *ConfigManager) GetBool(key string) bool {
 	case bool:
 		return val
 	case string:
-		if strings.ToLower(val) == "true" {
-			return true
-		}
-		return false
+		return strings.EqualFold(val, "true")
 	case int:
-		if val == 0 {
-			return false
-		}
-		return true
-	case float32, float64:
-		if val == 0 {
-			return false
-		}
-		return true
+		return val != 0
+	case float32:
+		return val != 0
+	case float64:
+		return val != 0
+	case time.Duration:
+		return val > 0
 	case nil:
 		return false
-	case time.Duration:
-		if val == 0 || val < 0 {
-			return false
-		}
-		return true
 	default:
-		return val.(bool)
+		return false
 	}
 }
 
@@ -83,6 +73,8 @@ func (c *ConfigManager) GetDuration(key string) time.Duration {
 		return d
 	case int:
 		return time.Duration(val)
+	case int64:
+		return time.Duration(val)
 	case float32:
 		return time.Duration(val)
 	case float64:
@@ -90,8 +82,7 @@ func (c *ConfigManager) GetDuration(key string) time.Duration {
 	case nil:
 		return 0
 	default:
-		return val.(time.Duration)
-
+		return 0
 	}
 }
 
@@ -174,6 +165,8 @@ func (c *ConfigManager) GetInt(key string) int {
 	switch val := v.Value.(type) {
 	case int:
 		return val
+	case int64:
+		return int(val)
 	case string:
 		i, err := strconv.Atoi(val)
 		if err != nil {
@@ -210,6 +203,8 @@ func (c *ConfigManager) GetIntSlice(key string) []int {
 			switch v := v.(type) {
 			case int:
 				ret = append(ret, v)
+			case int64:
+				ret = append(ret, int(v))
 			case string:
 				i, err := strconv.Atoi(v)
 				if err != nil {

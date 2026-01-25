@@ -40,8 +40,8 @@ func Set(key string, value any) {
 	defaultConfigManager.Set(key, value)
 }
 
-func WriteConfig() {
-	defaultConfigManager.WriteConfig()
+func WriteConfig() error {
+	return defaultConfigManager.WriteConfig()
 }
 
 func ConfigFileUsed() string {

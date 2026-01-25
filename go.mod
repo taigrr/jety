@@ -1,6 +1,6 @@
 module github.com/taigrr/jety
 
-go 1.21.3
+go 1.25.5
 
 require (
 	github.com/BurntSushi/toml v1.3.2

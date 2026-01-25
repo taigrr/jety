@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -55,9 +57,12 @@ func NewConfigManager() *ConfigManager {
 	cm.envPrefix = ""
 	envSet := os.Environ()
 	for _, env := range envSet {
-		kv := strings.Split(env, "=")
-		lower := strings.ToLower(kv[0])
-		cm.envConfig[lower] = ConfigMap{Key: kv[0], Value: kv[1]}
+		key, value, found := strings.Cut(env, "=")
+		if !found {
+			continue
+		}
+		lower := strings.ToLower(key)
+		cm.envConfig[lower] = ConfigMap{Key: key, Value: value}
 	}
 	return &cm
 }
@@ -65,17 +70,20 @@ func NewConfigManager() *ConfigManager {
 func (c *ConfigManager) WithEnvPrefix(prefix string) *ConfigManager {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.envPrefix = prefix
 	envSet := os.Environ()
 	c.envConfig = make(map[string]ConfigMap)
 	for _, env := range envSet {
-		kv := strings.Split(env, "=")
-		if strings.HasPrefix(kv[0], prefix) {
-			withoutPrefix := strings.TrimPrefix(kv[0], prefix)
+		key, value, found := strings.Cut(env, "=")
+		if !found {
+			continue
+		}
+		if withoutPrefix, ok := strings.CutPrefix(key, prefix); ok {
 			lower := strings.ToLower(withoutPrefix)
-			c.envConfig[lower] = ConfigMap{Key: withoutPrefix, Value: kv[1]}
+			c.envConfig[lower] = ConfigMap{Key: withoutPrefix, Value: value}
 		}
 	}
+	// Don't set envPrefix since keys are already stripped of prefix
+	c.envPrefix = ""
 	return c
 }
 
@@ -92,8 +100,8 @@ func (c *ConfigManager) UseExplicitDefaults(enable bool) {
 }
 
 func (c *ConfigManager) collapse() {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	ccm := make(map[string]ConfigMap)
 	for k, v := range c.defaultConfig {
 		ccm[k] = v
@@ -101,9 +109,7 @@ func (c *ConfigManager) collapse() {
 			ccm[k] = c.envConfig[k]
 		}
 	}
-	for k, v := range c.mapConfig {
-		ccm[k] = v
-	}
+	maps.Copy(ccm, c.mapConfig)
 	c.combinedConfig = ccm
 }
 
@@ -147,6 +153,8 @@ func (c *ConfigManager) WriteConfig() error {
 }
 
 func (c *ConfigManager) SetConfigType(configType string) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	switch configType {
 	case "toml":
 		c.configType = ConfigTypeTOML
@@ -161,12 +169,34 @@ func (c *ConfigManager) SetConfigType(configType string) error {
 }
 
 func (c *ConfigManager) SetEnvPrefix(prefix string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.envPrefix = prefix
 }
 
 func (c *ConfigManager) ReadInConfig() error {
-	// assume config = map[string]any
-	confFileData, err := readFile(c.configFileUsed, c.configType)
+	c.mutex.RLock()
+	configFile := c.configFileUsed
+	if configFile == "" && c.configPath != "" && c.configName != "" {
+		ext := ""
+		switch c.configType {
+		case ConfigTypeTOML:
+			ext = ".toml"
+		case ConfigTypeYAML:
+			ext = ".yaml"
+		case ConfigTypeJSON:
+			ext = ".json"
+		}
+		configFile = filepath.Join(c.configPath, c.configName+ext)
+	}
+	configType := c.configType
+	c.mutex.RUnlock()
+
+	if configFile == "" {
+		return errors.New("no config file specified: use SetConfigFile or SetConfigDir + SetConfigName")
+	}
+
+	confFileData, err := readFile(configFile, configType)
 	if err != nil {
 		return err
 	}
@@ -177,6 +207,7 @@ func (c *ConfigManager) ReadInConfig() error {
 	}
 	c.mutex.Lock()
 	c.mapConfig = conf
+	c.configFileUsed = configFile
 	c.mutex.Unlock()
 	c.collapse()
 	return nil
