@@ -1064,6 +1064,128 @@ enabled = false
 	}
 }
 
+func TestPackageLevelGetIntSlice(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("nums", []int{1, 2, 3})
+	got := GetIntSlice("nums")
+	if len(got) != 3 || got[0] != 1 {
+		t.Errorf("GetIntSlice() = %v, want [1 2 3]", got)
+	}
+}
+
+func TestPackageLevelSetConfigName(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.json"), []byte(`{"port": 1234}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	SetConfigName("app")
+	defaultConfigManager.SetConfigDir(dir)
+	if err := SetConfigType("json"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReadInConfig(); err != nil {
+		t.Fatal(err)
+	}
+	if got := GetInt("port"); got != 1234 {
+		t.Errorf("GetInt(port) = %d, want 1234", got)
+	}
+}
+
+func TestPackageLevelSetEnvPrefix(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	SetEnvPrefix("JETY_TEST_")
+	if defaultConfigManager.envPrefix != "JETY_TEST_" {
+		t.Errorf("envPrefix = %q, want %q", defaultConfigManager.envPrefix, "JETY_TEST_")
+	}
+}
+
+func TestPackageLevelWriteConfig(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	dir := t.TempDir()
+	f := filepath.Join(dir, "out.json")
+	SetConfigFile(f)
+	if err := SetConfigType("json"); err != nil {
+		t.Fatal(err)
+	}
+	Set("key", "value")
+	if err := WriteConfig(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(f)
+	if len(data) == 0 {
+		t.Error("WriteConfig produced empty file")
+	}
+}
+
+func TestPackageLevelGetStringMap(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("m", map[string]any{"a": 1})
+	got := GetStringMap("m")
+	if got == nil || got["a"] != 1 {
+		t.Errorf("GetStringMap() = %v", got)
+	}
+}
+
+func TestPackageLevelGetStringSlice(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("s", []string{"a", "b"})
+	got := GetStringSlice("s")
+	if len(got) != 2 || got[0] != "a" {
+		t.Errorf("GetStringSlice() = %v", got)
+	}
+}
+
+func TestGetStringNonStringValue(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("num", 42)
+	if got := cm.GetString("num"); got != "42" {
+		t.Errorf("GetString(num) = %q, want %q", got, "42")
+	}
+}
+
+func TestGetIntInt64(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("key", int64(999))
+	if got := cm.GetInt("key"); got != 999 {
+		t.Errorf("GetInt(int64) = %d, want 999", got)
+	}
+}
+
+func TestGetIntUnknownType(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("key", struct{}{})
+	if got := cm.GetInt("key"); got != 0 {
+		t.Errorf("GetInt(struct) = %d, want 0", got)
+	}
+}
+
+func TestGetIntSliceInt64Values(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("key", []any{int64(10), int64(20)})
+	got := cm.GetIntSlice("key")
+	if len(got) != 2 || got[0] != 10 || got[1] != 20 {
+		t.Errorf("GetIntSlice(int64) = %v, want [10 20]", got)
+	}
+}
+
+func TestGetIntSliceNonSlice(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("key", "notaslice")
+	if got := cm.GetIntSlice("key"); got != nil {
+		t.Errorf("GetIntSlice(string) = %v, want nil", got)
+	}
+}
+
+func TestGetIntSliceUnknownInnerType(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("key", []any{struct{}{}, true})
+	got := cm.GetIntSlice("key")
+	if len(got) != 0 {
+		t.Errorf("GetIntSlice(unknown types) = %v, want []", got)
+	}
+}
+
 func TestDeeplyNestedWriteConfig(t *testing.T) {
 	dir := t.TempDir()
 
