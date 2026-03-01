@@ -28,17 +28,16 @@ type (
 	}
 
 	ConfigManager struct {
-		configName       string
-		configPath       string
-		configFileUsed   string
-		configType       configType
-		overrideConfig   map[string]ConfigMap
-		fileConfig       map[string]ConfigMap
-		defaultConfig    map[string]ConfigMap
-		envConfig        map[string]ConfigMap
-		combinedConfig   map[string]ConfigMap
-		mutex            sync.RWMutex
-		explicitDefaults bool
+		configName     string
+		configPath     string
+		configFileUsed string
+		configType     configType
+		overrideConfig map[string]ConfigMap
+		fileConfig     map[string]ConfigMap
+		defaultConfig  map[string]ConfigMap
+		envConfig      map[string]ConfigMap
+		combinedConfig map[string]ConfigMap
+		mutex          sync.RWMutex
 	}
 )
 
@@ -90,10 +89,48 @@ func (c *ConfigManager) ConfigFileUsed() string {
 	return c.configFileUsed
 }
 
-func (c *ConfigManager) UseExplicitDefaults(enable bool) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.explicitDefaults = enable
+// IsSet checks whether a key has been set in any configuration source.
+func (c *ConfigManager) IsSet(key string) bool {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	lower := strings.ToLower(key)
+	if _, ok := c.combinedConfig[lower]; ok {
+		return true
+	}
+	_, ok := c.envConfig[lower]
+	return ok
+}
+
+// AllKeys returns all keys from all configuration sources, deduplicated.
+func (c *ConfigManager) AllKeys() []string {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	seen := make(map[string]struct{})
+	var keys []string
+	for k := range c.combinedConfig {
+		if _, ok := seen[k]; !ok {
+			seen[k] = struct{}{}
+			keys = append(keys, k)
+		}
+	}
+	for k := range c.envConfig {
+		if _, ok := seen[k]; !ok {
+			seen[k] = struct{}{}
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
+// AllSettings returns all settings as a flat map of key to value.
+func (c *ConfigManager) AllSettings() map[string]any {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	result := make(map[string]any, len(c.combinedConfig))
+	for k, v := range c.combinedConfig {
+		result[k] = v.Value
+	}
+	return result
 }
 
 func (c *ConfigManager) collapse() {
@@ -107,8 +144,10 @@ func (c *ConfigManager) collapse() {
 	for k, v := range c.fileConfig {
 		ccm[k] = v
 	}
-	for k := range c.defaultConfig {
-		if v, ok := c.envConfig[k]; ok {
+	for k, v := range c.envConfig {
+		if _, inDefaults := c.defaultConfig[k]; inDefaults {
+			ccm[k] = v
+		} else if _, inFile := c.fileConfig[k]; inFile {
 			ccm[k] = v
 		}
 	}

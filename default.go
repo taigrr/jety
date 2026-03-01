@@ -67,3 +67,35 @@ func GetStringMap(key string) map[string]any {
 func GetStringSlice(key string) []string {
 	return defaultConfigManager.GetStringSlice(key)
 }
+
+func Get(key string) any {
+	return defaultConfigManager.Get(key)
+}
+
+func SetBool(key string, value bool) {
+	defaultConfigManager.SetBool(key, value)
+}
+
+func SetString(key string, value string) {
+	defaultConfigManager.SetString(key, value)
+}
+
+func SetConfigDir(path string) {
+	defaultConfigManager.SetConfigDir(path)
+}
+
+func WithEnvPrefix(prefix string) *ConfigManager {
+	return defaultConfigManager.WithEnvPrefix(prefix)
+}
+
+func IsSet(key string) bool {
+	return defaultConfigManager.IsSet(key)
+}
+
+func AllKeys() []string {
+	return defaultConfigManager.AllKeys()
+}
+
+func AllSettings() map[string]any {
+	return defaultConfigManager.AllSettings()
+}

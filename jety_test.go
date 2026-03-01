@@ -760,17 +760,6 @@ func TestPackageLevelFunctions(t *testing.T) {
 	}
 }
 
-func TestUseExplicitDefaults(t *testing.T) {
-	cm := NewConfigManager()
-	cm.UseExplicitDefaults(true)
-
-	// Just verify it doesn't panic and the field is set
-	cm.SetDefault("key", "value")
-	if got := cm.GetString("key"); got != "value" {
-		t.Errorf("GetString(key) = %q, want %q", got, "value")
-	}
-}
-
 func TestSetString(t *testing.T) {
 	cm := NewConfigManager()
 	cm.SetString("name", "test")
@@ -1395,5 +1384,85 @@ func TestPrecedenceChain(t *testing.T) {
 	// extra: only default → defaultextra
 	if got := cm.GetString("extra"); got != "defaultextra" {
 		t.Errorf("extra: got %q, want defaultextra (default)", got)
+	}
+}
+
+func TestIsSet(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("exists", "yes")
+
+	if !cm.IsSet("exists") {
+		t.Error("IsSet(exists) = false, want true")
+	}
+	if cm.IsSet("nope") {
+		t.Error("IsSet(nope) = true, want false")
+	}
+}
+
+func TestAllKeys(t *testing.T) {
+	cm := NewConfigManager()
+	cm.SetDefault("a", 1)
+	cm.Set("b", 2)
+
+	keys := cm.AllKeys()
+	found := make(map[string]bool)
+	for _, k := range keys {
+		found[k] = true
+	}
+	if !found["a"] || !found["b"] {
+		t.Errorf("AllKeys() = %v, want to contain a and b", keys)
+	}
+}
+
+func TestAllSettings(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("port", 8080)
+	cm.Set("host", "localhost")
+
+	settings := cm.AllSettings()
+	if settings["port"] != 8080 || settings["host"] != "localhost" {
+		t.Errorf("AllSettings() = %v", settings)
+	}
+}
+
+func TestEnvOverridesFileWithoutDefault(t *testing.T) {
+	// Bug fix: env should override file even when no default is set for that key
+	os.Setenv("HOST", "envhost")
+	defer os.Unsetenv("HOST")
+
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configFile, []byte("host: filehost"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cm := NewConfigManager()
+	cm.SetConfigFile(configFile)
+	if err := cm.SetConfigType("yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cm.ReadInConfig(); err != nil {
+		t.Fatal(err)
+	}
+
+	// No SetDefault("host", ...) was called — env should still win
+	if got := cm.GetString("host"); got != "envhost" {
+		t.Errorf("GetString(host) = %q, want envhost (env overrides file even without default)", got)
+	}
+}
+
+func TestPackageLevelIsSet(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("x", 1)
+	if !IsSet("x") {
+		t.Error("IsSet(x) = false")
+	}
+}
+
+func TestPackageLevelGet(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("key", "val")
+	if Get("key") != "val" {
+		t.Error("Get(key) failed")
 	}
 }

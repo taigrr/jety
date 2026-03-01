@@ -33,14 +33,14 @@ func (c *ConfigManager) SetDefault(key string, value any) {
 	defer c.mutex.Unlock()
 	lower := strings.ToLower(key)
 	c.defaultConfig[lower] = ConfigMap{Key: key, Value: value}
-	if _, ok := c.overrideConfig[lower]; !ok {
-		if envVal, ok := c.envConfig[lower]; ok {
-			c.overrideConfig[lower] = ConfigMap{Key: key, Value: envVal.Value}
-			c.combinedConfig[lower] = ConfigMap{Key: key, Value: envVal.Value}
-		} else {
-			c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
-		}
+	// Update combinedConfig respecting precedence: override > env > file > default
+	if v, ok := c.overrideConfig[lower]; ok {
+		c.combinedConfig[lower] = v
+	} else if v, ok := c.envConfig[lower]; ok {
+		c.combinedConfig[lower] = ConfigMap{Key: key, Value: v.Value}
+	} else if v, ok := c.fileConfig[lower]; ok {
+		c.combinedConfig[lower] = v
 	} else {
-		c.combinedConfig[lower] = c.overrideConfig[lower]
+		c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
 	}
 }
