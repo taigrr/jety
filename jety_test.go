@@ -1,7 +1,9 @@
 package jety
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -804,11 +806,6 @@ func TestWriteConfigUnsupportedType(t *testing.T) {
 func TestSetEnvPrefix(t *testing.T) {
 	cm := NewConfigManager()
 	cm.SetEnvPrefix("PREFIX_")
-
-	// Verify it doesn't panic
-	if cm.envPrefix != "PREFIX_" {
-		t.Errorf("envPrefix = %q, want %q", cm.envPrefix, "PREFIX_")
-	}
 }
 
 func TestDeeplyNestedConfig(t *testing.T) {
@@ -1095,9 +1092,6 @@ func TestPackageLevelSetConfigName(t *testing.T) {
 func TestPackageLevelSetEnvPrefix(t *testing.T) {
 	defaultConfigManager = NewConfigManager()
 	SetEnvPrefix("JETY_TEST_")
-	if defaultConfigManager.envPrefix != "JETY_TEST_" {
-		t.Errorf("envPrefix = %q, want %q", defaultConfigManager.envPrefix, "JETY_TEST_")
-	}
 }
 
 func TestPackageLevelWriteConfig(t *testing.T) {
@@ -1264,5 +1258,92 @@ func TestDeeplyNestedWriteConfig(t *testing.T) {
 				t.Errorf("app.server.tls.enabled = %v, want true", tls["enabled"])
 			}
 		})
+	}
+}
+
+func TestSetEnvPrefixOverridesDefault(t *testing.T) {
+	// Subprocess test: env vars must exist before NewConfigManager is called.
+	if os.Getenv("TEST_SET_ENV_PREFIX") == "1" {
+		cm := NewConfigManager()
+		cm.SetEnvPrefix("MYAPP_")
+		cm.SetDefault("port", 8080)
+
+		if got := cm.GetInt("port"); got != 9999 {
+			fmt.Fprintf(os.Stderr, "GetInt(port) = %d, want 9999\n", got)
+			os.Exit(1)
+		}
+		if got := cm.GetString("host"); got != "envhost" {
+			fmt.Fprintf(os.Stderr, "GetString(host) = %q, want %q\n", got, "envhost")
+			os.Exit(1)
+		}
+		// Unprefixed var should not be visible.
+		if got := cm.GetString("other"); got != "" {
+			fmt.Fprintf(os.Stderr, "GetString(other) = %q, want empty\n", got)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestSetEnvPrefixOverridesDefault$")
+	cmd.Env = append(os.Environ(),
+		"TEST_SET_ENV_PREFIX=1",
+		"MYAPP_PORT=9999",
+		"MYAPP_HOST=envhost",
+		"OTHER=should_not_see",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	}
+}
+
+func TestSetEnvPrefixWithSetDefault(t *testing.T) {
+	// SetDefault should pick up prefixed env vars after SetEnvPrefix.
+	if os.Getenv("TEST_SET_ENV_PREFIX_DEFAULT") == "1" {
+		cm := NewConfigManager()
+		cm.SetEnvPrefix("APP_")
+		cm.SetDefault("database_host", "localhost")
+
+		if got := cm.GetString("database_host"); got != "db.example.com" {
+			fmt.Fprintf(os.Stderr, "GetString(database_host) = %q, want %q\n", got, "db.example.com")
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestSetEnvPrefixWithSetDefault$")
+	cmd.Env = append(os.Environ(),
+		"TEST_SET_ENV_PREFIX_DEFAULT=1",
+		"APP_DATABASE_HOST=db.example.com",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	}
+}
+
+func TestPackageLevelSetEnvPrefixOverrides(t *testing.T) {
+	// Package-level SetEnvPrefix should work the same way.
+	if os.Getenv("TEST_PKG_SET_ENV_PREFIX") == "1" {
+		// Reset the default manager to pick up our env vars.
+		defaultConfigManager = NewConfigManager()
+		SetEnvPrefix("PKG_")
+		SetDefault("val", "default")
+
+		if got := GetString("val"); got != "from_env" {
+			fmt.Fprintf(os.Stderr, "GetString(val) = %q, want %q\n", got, "from_env")
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestPackageLevelSetEnvPrefixOverrides$")
+	cmd.Env = append(os.Environ(),
+		"TEST_PKG_SET_ENV_PREFIX=1",
+		"PKG_VAL=from_env",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("subprocess failed: %v\n%s", err, out)
 	}
 }

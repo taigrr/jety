@@ -12,7 +12,7 @@ func (c *ConfigManager) Get(key string) any {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return nil
 		}
@@ -25,7 +25,7 @@ func (c *ConfigManager) GetBool(key string) bool {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return false
 		}
@@ -56,7 +56,7 @@ func (c *ConfigManager) GetDuration(key string) time.Duration {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return 0
 		}
@@ -91,7 +91,7 @@ func (c *ConfigManager) GetString(key string) string {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return ""
 		}
@@ -110,7 +110,7 @@ func (c *ConfigManager) GetStringMap(key string) map[string]any {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return nil
 		}
@@ -128,7 +128,7 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return nil
 		}
@@ -157,7 +157,7 @@ func (c *ConfigManager) GetInt(key string) int {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return 0
 		}
@@ -189,7 +189,7 @@ func (c *ConfigManager) GetIntSlice(key string) []int {
 	defer c.mutex.RUnlock()
 	v, ok := c.combinedConfig[strings.ToLower(key)]
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(c.envPrefix+key)]
+		v, ok = c.envConfig[strings.ToLower(key)]
 		if !ok {
 			return nil
 		}

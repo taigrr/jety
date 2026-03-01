@@ -33,7 +33,6 @@ type (
 		configPath       string
 		configFileUsed   string
 		configType       configType
-		envPrefix        string
 		mapConfig        map[string]ConfigMap
 		defaultConfig    map[string]ConfigMap
 		envConfig        map[string]ConfigMap
@@ -54,7 +53,6 @@ func NewConfigManager() *ConfigManager {
 	cm.mapConfig = make(map[string]ConfigMap)
 	cm.defaultConfig = make(map[string]ConfigMap)
 	cm.combinedConfig = make(map[string]ConfigMap)
-	cm.envPrefix = ""
 	envSet := os.Environ()
 	for _, env := range envSet {
 		key, value, found := strings.Cut(env, "=")
@@ -82,8 +80,6 @@ func (c *ConfigManager) WithEnvPrefix(prefix string) *ConfigManager {
 			c.envConfig[lower] = ConfigMap{Key: withoutPrefix, Value: value}
 		}
 	}
-	// Don't set envPrefix since keys are already stripped of prefix
-	c.envPrefix = ""
 	return c
 }
 
@@ -171,7 +167,21 @@ func (c *ConfigManager) SetConfigType(configType string) error {
 func (c *ConfigManager) SetEnvPrefix(prefix string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.envPrefix = prefix
+	// Re-read environment variables, stripping the prefix from matching keys.
+	// This mirrors WithEnvPrefix behavior so that prefixed env vars are
+	// accessible by their unprefixed key name.
+	envSet := os.Environ()
+	c.envConfig = make(map[string]ConfigMap)
+	for _, env := range envSet {
+		key, value, found := strings.Cut(env, "=")
+		if !found {
+			continue
+		}
+		if withoutPrefix, ok := strings.CutPrefix(key, prefix); ok {
+			lower := strings.ToLower(withoutPrefix)
+			c.envConfig[lower] = ConfigMap{Key: withoutPrefix, Value: value}
+		}
+	}
 }
 
 func (c *ConfigManager) ReadInConfig() error {
