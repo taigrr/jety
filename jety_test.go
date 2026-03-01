@@ -66,7 +66,7 @@ func TestNewConfigManager(t *testing.T) {
 	if cm.envConfig == nil {
 		t.Error("envConfig not initialized")
 	}
-	if cm.mapConfig == nil {
+	if cm.overrideConfig == nil {
 		t.Error("mapConfig not initialized")
 	}
 	if cm.defaultConfig == nil {
@@ -554,7 +554,7 @@ func TestEnvOverridesDefault(t *testing.T) {
 	}
 }
 
-func TestConfigFileOverridesEnv(t *testing.T) {
+func TestEnvOverridesConfigFile(t *testing.T) {
 	os.Setenv("PORT", "5000")
 	defer os.Unsetenv("PORT")
 
@@ -575,9 +575,9 @@ func TestConfigFileOverridesEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Config file should override env and default
-	if got := cm.GetInt("port"); got != 9000 {
-		t.Errorf("GetInt(port) = %d, want 9000 (from file)", got)
+	// Env should override config file (env > file > defaults)
+	if got := cm.GetInt("port"); got != 5000 {
+		t.Errorf("GetInt(port) = %d, want 5000 (env overrides file)", got)
 	}
 }
 
@@ -1345,5 +1345,55 @@ func TestPackageLevelSetEnvPrefixOverrides(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	}
+}
+
+func TestPrecedenceChain(t *testing.T) {
+	// Verify: Set > env > file > defaults
+	os.Setenv("PORT", "5000")
+	os.Setenv("HOST", "envhost")
+	os.Setenv("LOG", "envlog")
+	defer os.Unsetenv("PORT")
+	defer os.Unsetenv("HOST")
+	defer os.Unsetenv("LOG")
+
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configFile, []byte("port: 9000\nhost: filehost\nlog: filelog\nname: filename"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cm := NewConfigManager()
+	cm.SetDefault("port", 8080)
+	cm.SetDefault("host", "defaulthost")
+	cm.SetDefault("log", "defaultlog")
+	cm.SetDefault("name", "defaultname")
+	cm.SetDefault("extra", "defaultextra")
+
+	cm.SetConfigFile(configFile)
+	if err := cm.SetConfigType("yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cm.ReadInConfig(); err != nil {
+		t.Fatal(err)
+	}
+
+	cm.Set("port", 1111) // Set overrides everything
+
+	// port: Set(1111) > env(5000) > file(9000) > default(8080) → 1111
+	if got := cm.GetInt("port"); got != 1111 {
+		t.Errorf("port: got %d, want 1111 (Set overrides all)", got)
+	}
+	// host: env(envhost) > file(filehost) > default(defaulthost) → envhost
+	if got := cm.GetString("host"); got != "envhost" {
+		t.Errorf("host: got %q, want envhost (env overrides file)", got)
+	}
+	// name: file(filename) > default(defaultname) → filename
+	if got := cm.GetString("name"); got != "filename" {
+		t.Errorf("name: got %q, want filename (file overrides default)", got)
+	}
+	// extra: only default → defaultextra
+	if got := cm.GetString("extra"); got != "defaultextra" {
+		t.Errorf("extra: got %q, want defaultextra (default)", got)
 	}
 }

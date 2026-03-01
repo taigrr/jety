@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,7 +32,8 @@ type (
 		configPath       string
 		configFileUsed   string
 		configType       configType
-		mapConfig        map[string]ConfigMap
+		overrideConfig   map[string]ConfigMap
+		fileConfig       map[string]ConfigMap
 		defaultConfig    map[string]ConfigMap
 		envConfig        map[string]ConfigMap
 		combinedConfig   map[string]ConfigMap
@@ -50,7 +50,8 @@ var (
 func NewConfigManager() *ConfigManager {
 	cm := ConfigManager{}
 	cm.envConfig = make(map[string]ConfigMap)
-	cm.mapConfig = make(map[string]ConfigMap)
+	cm.overrideConfig = make(map[string]ConfigMap)
+	cm.fileConfig = make(map[string]ConfigMap)
 	cm.defaultConfig = make(map[string]ConfigMap)
 	cm.combinedConfig = make(map[string]ConfigMap)
 	envSet := os.Environ()
@@ -99,13 +100,21 @@ func (c *ConfigManager) collapse() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	ccm := make(map[string]ConfigMap)
+	// Precedence (highest to lowest): overrides (Set) > env > file > defaults
 	for k, v := range c.defaultConfig {
 		ccm[k] = v
-		if _, ok := c.envConfig[k]; ok {
-			ccm[k] = c.envConfig[k]
+	}
+	for k, v := range c.fileConfig {
+		ccm[k] = v
+	}
+	for k := range c.defaultConfig {
+		if v, ok := c.envConfig[k]; ok {
+			ccm[k] = v
 		}
 	}
-	maps.Copy(ccm, c.mapConfig)
+	for k, v := range c.overrideConfig {
+		ccm[k] = v
+	}
 	c.combinedConfig = ccm
 }
 
@@ -216,7 +225,7 @@ func (c *ConfigManager) ReadInConfig() error {
 		conf[lower] = ConfigMap{Key: k, Value: v}
 	}
 	c.mutex.Lock()
-	c.mapConfig = conf
+	c.fileConfig = conf
 	c.configFileUsed = configFile
 	c.mutex.Unlock()
 	c.collapse()
