@@ -160,6 +160,9 @@ func (c *ConfigManager) collapse() {
 func (c *ConfigManager) WriteConfig() error {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
+	if c.configFileUsed == "" {
+		return errors.New("no config file specified")
+	}
 	flattenedConfig := make(map[string]any)
 	for _, v := range c.combinedConfig {
 		flattenedConfig[v.Key] = v.Value
@@ -181,8 +184,10 @@ func (c *ConfigManager) WriteConfig() error {
 		}
 		defer f.Close()
 		enc := yaml.NewEncoder(f)
-		err = enc.Encode(flattenedConfig)
-		return err
+		if err = enc.Encode(flattenedConfig); err != nil {
+			return err
+		}
+		return enc.Close()
 	case ConfigTypeJSON:
 		f, err := os.Create(c.configFileUsed)
 		if err != nil {
@@ -272,33 +277,33 @@ func (c *ConfigManager) ReadInConfig() error {
 }
 
 func readFile(filename string, fileType configType) (map[string]any, error) {
-	fileData := make(map[string]any)
-	if d, err := os.Stat(filename); os.IsNotExist(err) {
-		return nil, ErrConfigFileNotFound
-	} else if d.Size() == 0 {
+	f, err := os.Open(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrConfigFileNotFound
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() == 0 {
 		return nil, ErrConfigFileEmpty
 	}
 
+	fileData := make(map[string]any)
 	switch fileType {
 	case ConfigTypeTOML:
-		_, err := toml.DecodeFile(filename, &fileData)
+		_, err := toml.NewDecoder(f).Decode(&fileData)
 		return fileData, err
 	case ConfigTypeYAML:
-		f, err := os.Open(filename)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		d := yaml.NewDecoder(f)
-		err = d.Decode(&fileData)
+		err := yaml.NewDecoder(f).Decode(&fileData)
 		return fileData, err
 	case ConfigTypeJSON:
-		f, err := os.Open(filename)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		err = json.NewDecoder(f).Decode(&fileData)
+		err := json.NewDecoder(f).Decode(&fileData)
 		return fileData, err
 	default:
 		return nil, fmt.Errorf("config type %s not supported", fileType)

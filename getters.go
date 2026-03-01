@@ -7,15 +7,24 @@ import (
 	"time"
 )
 
+// resolve looks up a key in combinedConfig, falling back to envConfig.
+func (c *ConfigManager) resolve(key string) (ConfigMap, bool) {
+	lower := strings.ToLower(key)
+	if v, ok := c.combinedConfig[lower]; ok {
+		return v, true
+	}
+	if v, ok := c.envConfig[lower]; ok {
+		return v, true
+	}
+	return ConfigMap{}, false
+}
+
 func (c *ConfigManager) Get(key string) any {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return nil
-		}
+		return nil
 	}
 	return v.Value
 }
@@ -23,12 +32,9 @@ func (c *ConfigManager) Get(key string) any {
 func (c *ConfigManager) GetBool(key string) bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return false
-		}
+		return false
 	}
 	val := v.Value
 	switch val := val.(type) {
@@ -54,12 +60,9 @@ func (c *ConfigManager) GetBool(key string) bool {
 func (c *ConfigManager) GetDuration(key string) time.Duration {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return 0
-		}
+		return 0
 	}
 	val := v.Value
 	switch val := val.(type) {
@@ -89,12 +92,9 @@ func (c *ConfigManager) GetDuration(key string) time.Duration {
 func (c *ConfigManager) GetString(key string) string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return ""
-		}
+		return ""
 	}
 
 	switch val := v.Value.(type) {
@@ -108,12 +108,9 @@ func (c *ConfigManager) GetString(key string) string {
 func (c *ConfigManager) GetStringMap(key string) map[string]any {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return nil
-		}
+		return nil
 	}
 	switch val := v.Value.(type) {
 	case map[string]any:
@@ -126,12 +123,9 @@ func (c *ConfigManager) GetStringMap(key string) map[string]any {
 func (c *ConfigManager) GetStringSlice(key string) []string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return nil
-		}
+		return nil
 	}
 	switch val := v.Value.(type) {
 	case []string:
@@ -155,12 +149,9 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 func (c *ConfigManager) GetInt(key string) int {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return 0
-		}
+		return 0
 	}
 	switch val := v.Value.(type) {
 	case int:
@@ -187,12 +178,9 @@ func (c *ConfigManager) GetInt(key string) int {
 func (c *ConfigManager) GetIntSlice(key string) []int {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	v, ok := c.combinedConfig[strings.ToLower(key)]
+	v, ok := c.resolve(key)
 	if !ok {
-		v, ok = c.envConfig[strings.ToLower(key)]
-		if !ok {
-			return nil
-		}
+		return nil
 	}
 	switch val := v.Value.(type) {
 	case []int:
