@@ -8,7 +8,7 @@ func (c *ConfigManager) SetBool(key string, value bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	lower := strings.ToLower(key)
-	c.mapConfig[lower] = ConfigMap{Key: key, Value: value}
+	c.overrideConfig[lower] = ConfigMap{Key: key, Value: value}
 	c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
 }
 
@@ -16,7 +16,7 @@ func (c *ConfigManager) SetString(key string, value string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	lower := strings.ToLower(key)
-	c.mapConfig[lower] = ConfigMap{Key: key, Value: value}
+	c.overrideConfig[lower] = ConfigMap{Key: key, Value: value}
 	c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
 }
 
@@ -24,7 +24,7 @@ func (c *ConfigManager) Set(key string, value any) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	lower := strings.ToLower(key)
-	c.mapConfig[lower] = ConfigMap{Key: key, Value: value}
+	c.overrideConfig[lower] = ConfigMap{Key: key, Value: value}
 	c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
 }
 
@@ -33,14 +33,14 @@ func (c *ConfigManager) SetDefault(key string, value any) {
 	defer c.mutex.Unlock()
 	lower := strings.ToLower(key)
 	c.defaultConfig[lower] = ConfigMap{Key: key, Value: value}
-	if _, ok := c.mapConfig[lower]; !ok {
+	if _, ok := c.overrideConfig[lower]; !ok {
 		if envVal, ok := c.envConfig[lower]; ok {
-			c.mapConfig[lower] = ConfigMap{Key: key, Value: envVal.Value}
+			c.overrideConfig[lower] = ConfigMap{Key: key, Value: envVal.Value}
 			c.combinedConfig[lower] = ConfigMap{Key: key, Value: envVal.Value}
 		} else {
 			c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
 		}
 	} else {
-		c.combinedConfig[lower] = c.mapConfig[lower]
+		c.combinedConfig[lower] = c.overrideConfig[lower]
 	}
 }
