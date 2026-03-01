@@ -22,11 +22,14 @@ const (
 type (
 	configType string
 
+	// ConfigMap holds a configuration entry with its original key name and value.
 	ConfigMap struct {
 		Key   string
 		Value any
 	}
 
+	// ConfigManager manages layered configuration from defaults, files,
+	// environment variables, and programmatic overrides.
 	ConfigManager struct {
 		configName     string
 		configPath     string
@@ -46,40 +49,47 @@ var (
 	ErrConfigFileEmpty    = errors.New("config file is empty")
 )
 
-func NewConfigManager() *ConfigManager {
-	cm := ConfigManager{}
-	cm.envConfig = make(map[string]ConfigMap)
-	cm.overrideConfig = make(map[string]ConfigMap)
-	cm.fileConfig = make(map[string]ConfigMap)
-	cm.defaultConfig = make(map[string]ConfigMap)
-	cm.combinedConfig = make(map[string]ConfigMap)
-	envSet := os.Environ()
-	for _, env := range envSet {
+// parseEnv reads environment variables, optionally filtering by prefix,
+// and returns a map keyed by lowercased (and prefix-stripped) variable names.
+func parseEnv(prefix string) map[string]ConfigMap {
+	result := make(map[string]ConfigMap)
+	for _, env := range os.Environ() {
 		key, value, found := strings.Cut(env, "=")
 		if !found {
 			continue
 		}
-		lower := strings.ToLower(key)
-		cm.envConfig[lower] = ConfigMap{Key: key, Value: value}
+		if prefix != "" {
+			stripped, ok := strings.CutPrefix(key, prefix)
+			if !ok {
+				continue
+			}
+			key = stripped
+		}
+		result[strings.ToLower(key)] = ConfigMap{Key: key, Value: value}
 	}
-	return &cm
+	return result
 }
 
+// NewConfigManager creates a new ConfigManager with all environment
+// variables loaded. Use [ConfigManager.WithEnvPrefix] or
+// [ConfigManager.SetEnvPrefix] to filter by prefix.
+func NewConfigManager() *ConfigManager {
+	return &ConfigManager{
+		envConfig:      parseEnv(""),
+		overrideConfig: make(map[string]ConfigMap),
+		fileConfig:     make(map[string]ConfigMap),
+		defaultConfig:  make(map[string]ConfigMap),
+		combinedConfig: make(map[string]ConfigMap),
+	}
+}
+
+// WithEnvPrefix filters environment variables to only those starting with
+// the given prefix, stripping the prefix from key names. Returns the
+// ConfigManager for chaining.
 func (c *ConfigManager) WithEnvPrefix(prefix string) *ConfigManager {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	envSet := os.Environ()
-	c.envConfig = make(map[string]ConfigMap)
-	for _, env := range envSet {
-		key, value, found := strings.Cut(env, "=")
-		if !found {
-			continue
-		}
-		if withoutPrefix, ok := strings.CutPrefix(key, prefix); ok {
-			lower := strings.ToLower(withoutPrefix)
-			c.envConfig[lower] = ConfigMap{Key: withoutPrefix, Value: value}
-		}
-	}
+	c.envConfig = parseEnv(prefix)
 	return c
 }
 
@@ -201,10 +211,10 @@ func (c *ConfigManager) WriteConfig() error {
 	}
 }
 
-func (c *ConfigManager) SetConfigType(configType string) error {
+func (c *ConfigManager) SetConfigType(ct string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	switch configType {
+	switch ct {
 	case "toml":
 		c.configType = ConfigTypeTOML
 	case "yaml":
@@ -212,29 +222,17 @@ func (c *ConfigManager) SetConfigType(configType string) error {
 	case "json":
 		c.configType = ConfigTypeJSON
 	default:
-		return fmt.Errorf("config type %s not supported", configType)
+		return fmt.Errorf("config type %s not supported", ct)
 	}
 	return nil
 }
 
+// SetEnvPrefix filters environment variables to only those starting with
+// the given prefix, stripping the prefix from key names.
 func (c *ConfigManager) SetEnvPrefix(prefix string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	// Re-read environment variables, stripping the prefix from matching keys.
-	// This mirrors WithEnvPrefix behavior so that prefixed env vars are
-	// accessible by their unprefixed key name.
-	envSet := os.Environ()
-	c.envConfig = make(map[string]ConfigMap)
-	for _, env := range envSet {
-		key, value, found := strings.Cut(env, "=")
-		if !found {
-			continue
-		}
-		if withoutPrefix, ok := strings.CutPrefix(key, prefix); ok {
-			lower := strings.ToLower(withoutPrefix)
-			c.envConfig[lower] = ConfigMap{Key: withoutPrefix, Value: value}
-		}
-	}
+	c.envConfig = parseEnv(prefix)
 }
 
 func (c *ConfigManager) ReadInConfig() error {
