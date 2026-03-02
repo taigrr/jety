@@ -1,5 +1,8 @@
 # JETY
 
+[![test](https://github.com/taigrr/jety/actions/workflows/test.yml/badge.svg)](https://github.com/taigrr/jety/actions/workflows/test.yml)
+[![govulncheck](https://github.com/taigrr/jety/actions/workflows/govulncheck.yml/badge.svg)](https://github.com/taigrr/jety/actions/workflows/govulncheck.yml)
+
 JSON, ENV, TOML, YAML
 
 A lightweight Go configuration management library supporting JSON, ENV, TOML, and YAML formats.
@@ -12,7 +15,7 @@ Originally built to support [grlx](http://github.com/gogrlx/grlx).
 go get github.com/taigrr/jety
 ```
 
-Requires Go 1.25.5 or later.
+Requires Go 1.26 or later.
 
 ## Quick Start
 
@@ -102,36 +105,6 @@ export MYAPP_SERVICES_CLOUD_VAR=override_value
 
 **Note**: Environment variables override defaults but config files take highest precedence.
 
-## Migration Guide
-
-### From v0.x to v1.x
-
-#### Breaking Changes
-
-1. **`WriteConfig()` now returns `error`**
-
-   ```go
-   // Before
-   jety.WriteConfig()
-
-   // After
-   if err := jety.WriteConfig(); err != nil {
-       // handle error
-   }
-   // Or if you want to ignore the error:
-   _ = jety.WriteConfig()
-   ```
-
-2. **Go 1.25.5 minimum required**
-
-   Update your Go version or pin to an older jety release.
-
-#### Non-Breaking Improvements
-
-- Getters (`GetBool`, `GetInt`, `GetDuration`) now return zero values instead of panicking on unknown types
-- Added `int64` support in `GetInt`, `GetIntSlice`, and `GetDuration`
-- Improved env var parsing (handles values containing `=`)
-
 ## API
 
 ### Configuration
@@ -159,6 +132,9 @@ export MYAPP_SERVICES_CLOUD_VAR=override_value
 | `GetStringSlice(key)`    | Get as []string          |
 | `GetIntSlice(key)`       | Get as []int             |
 | `GetStringMap(key)`      | Get as map[string]string |
+| `IsSet(key)`             | Check if key has a value |
+| `AllKeys()`              | List all known keys      |
+| `AllSettings()`          | Get all values as a map  |
 
 ### Environment
 
