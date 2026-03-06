@@ -20,6 +20,14 @@ func SetConfigName(name string) {
 	defaultConfigManager.SetConfigName(name)
 }
 
+func GetFloat64(key string) float64 {
+	return defaultConfigManager.GetFloat64(key)
+}
+
+func GetInt64(key string) int64 {
+	return defaultConfigManager.GetInt64(key)
+}
+
 func GetInt(key string) int {
 	return defaultConfigManager.GetInt(key)
 }

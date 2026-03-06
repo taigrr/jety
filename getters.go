@@ -146,6 +146,64 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 	}
 }
 
+func (c *ConfigManager) GetFloat64(key string) float64 {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	v, ok := c.resolve(key)
+	if !ok {
+		return 0
+	}
+	switch val := v.Value.(type) {
+	case float64:
+		return val
+	case float32:
+		return float64(val)
+	case int:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case string:
+		f, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return 0
+		}
+		return f
+	case nil:
+		return 0
+	default:
+		return 0
+	}
+}
+
+func (c *ConfigManager) GetInt64(key string) int64 {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	v, ok := c.resolve(key)
+	if !ok {
+		return 0
+	}
+	switch val := v.Value.(type) {
+	case int64:
+		return val
+	case int:
+		return int64(val)
+	case string:
+		i, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0
+		}
+		return i
+	case float32:
+		return int64(val)
+	case float64:
+		return int64(val)
+	case nil:
+		return 0
+	default:
+		return 0
+	}
+}
+
 func (c *ConfigManager) GetInt(key string) int {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
