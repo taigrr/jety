@@ -120,6 +120,78 @@ func TestSetAndGetInt(t *testing.T) {
 	}
 }
 
+func TestSetAndGetInt64(t *testing.T) {
+	cm := NewConfigManager()
+
+	tests := []struct {
+		name  string
+		value any
+		want  int64
+	}{
+		{"int64", int64(9223372036854775807), 9223372036854775807},
+		{"int", 42, 42},
+		{"string", "123456789012345", 123456789012345},
+		{"float64", 99.9, 99},
+		{"float32", float32(50.5), 50},
+		{"invalid string", "not-a-number", 0},
+		{"nil", nil, 0},
+		{"unknown type", struct{}{}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm.Set("key", tt.value)
+			got := cm.GetInt64("key")
+			if got != tt.want {
+				t.Errorf("GetInt64() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSetAndGetFloat64(t *testing.T) {
+	cm := NewConfigManager()
+
+	tests := []struct {
+		name  string
+		value any
+		want  float64
+	}{
+		{"float64", 3.14159, 3.14159},
+		{"float32", float32(2.5), 2.5},
+		{"int", 42, 42.0},
+		{"int64", int64(100), 100.0},
+		{"string", "1.618", 1.618},
+		{"invalid string", "not-a-float", 0},
+		{"nil", nil, 0},
+		{"unknown type", struct{}{}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm.Set("key", tt.value)
+			got := cm.GetFloat64("key")
+			if got != tt.want {
+				t.Errorf("GetFloat64() = %f, want %f", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetFloat64NotSet(t *testing.T) {
+	cm := NewConfigManager()
+	if got := cm.GetFloat64("nonexistent"); got != 0 {
+		t.Errorf("GetFloat64(nonexistent) = %f, want 0", got)
+	}
+}
+
+func TestGetInt64NotSet(t *testing.T) {
+	cm := NewConfigManager()
+	if got := cm.GetInt64("nonexistent"); got != 0 {
+		t.Errorf("GetInt64(nonexistent) = %d, want 0", got)
+	}
+}
+
 func TestSetAndGetBool(t *testing.T) {
 	cm := NewConfigManager()
 
@@ -1464,5 +1536,21 @@ func TestPackageLevelGet(t *testing.T) {
 	Set("key", "val")
 	if Get("key") != "val" {
 		t.Error("Get(key) failed")
+	}
+}
+
+func TestPackageLevelGetFloat64(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("rate", 3.14)
+	if got := GetFloat64("rate"); got != 3.14 {
+		t.Errorf("GetFloat64(rate) = %f, want 3.14", got)
+	}
+}
+
+func TestPackageLevelGetInt64(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("bignum", int64(9223372036854775807))
+	if got := GetInt64("bignum"); got != 9223372036854775807 {
+		t.Errorf("GetInt64(bignum) = %d, want 9223372036854775807", got)
 	}
 }

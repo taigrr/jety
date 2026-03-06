@@ -15,7 +15,7 @@ Originally built to support [grlx](http://github.com/gogrlx/grlx).
 go get github.com/taigrr/jety
 ```
 
-Requires Go 1.26 or later.
+Requires Go 1.26.1 or later.
 
 ## Quick Start
 
@@ -39,7 +39,7 @@ func main() {
         // handle error
     }
 
-    // Get values (config file > env > default)
+    // Get values (Set > env > config file > default)
     port := jety.GetInt("port")
     host := jety.GetString("host")
 }
@@ -53,7 +53,7 @@ func main() {
 - **Case-insensitive keys**: Keys normalized to lowercase
 - **Type coercion**: Getters handle type conversion gracefully
 - **Thread-safe**: Safe for concurrent access
-- **Config precedence**: config file > environment > defaults
+- **Config precedence**: Set() > environment > config file > defaults
 
 ## Nested Configuration
 
@@ -103,7 +103,7 @@ export MYAPP_PORT=9000
 export MYAPP_SERVICES_CLOUD_VAR=override_value
 ```
 
-**Note**: Environment variables override defaults but config files take highest precedence.
+**Note**: Environment variables override both defaults and config file values for registered keys (keys that appear in defaults or the config file).
 
 ## API
 
@@ -127,11 +127,13 @@ export MYAPP_SERVICES_CLOUD_VAR=override_value
 | `Get(key)`               | Get raw value            |
 | `GetString(key)`         | Get as string            |
 | `GetInt(key)`            | Get as int               |
+| `GetInt64(key)`          | Get as int64             |
+| `GetFloat64(key)`        | Get as float64           |
 | `GetBool(key)`           | Get as bool              |
 | `GetDuration(key)`       | Get as time.Duration     |
 | `GetStringSlice(key)`    | Get as []string          |
 | `GetIntSlice(key)`       | Get as []int             |
-| `GetStringMap(key)`      | Get as map[string]string |
+| `GetStringMap(key)`      | Get as map[string]any    |
 | `IsSet(key)`             | Check if key has a value |
 | `AllKeys()`              | List all known keys      |
 | `AllSettings()`          | Get all values as a map  |
