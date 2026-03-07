@@ -28,6 +28,19 @@ func (c *ConfigManager) Set(key string, value any) {
 	c.combinedConfig[lower] = ConfigMap{Key: key, Value: value}
 }
 
+// Delete removes a key from all configuration layers (overrides, file,
+// defaults) and rebuilds the combined configuration. Environment variables
+// are not affected since they are loaded from the process environment.
+func (c *ConfigManager) Delete(key string) {
+	c.mutex.Lock()
+	lower := strings.ToLower(key)
+	delete(c.overrideConfig, lower)
+	delete(c.fileConfig, lower)
+	delete(c.defaultConfig, lower)
+	delete(c.combinedConfig, lower)
+	c.mutex.Unlock()
+}
+
 func (c *ConfigManager) SetDefault(key string, value any) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()

@@ -1554,3 +1554,170 @@ func TestPackageLevelGetInt64(t *testing.T) {
 		t.Errorf("GetInt64(bignum) = %d, want 9223372036854775807", got)
 	}
 }
+
+func TestDelete(t *testing.T) {
+	cm := NewConfigManager()
+	cm.SetDefault("keep", "yes")
+	cm.SetDefault("remove", "default")
+	cm.Set("remove", "override")
+
+	if !cm.IsSet("remove") {
+		t.Fatal("remove should be set before delete")
+	}
+
+	cm.Delete("remove")
+
+	if cm.IsSet("remove") {
+		t.Error("remove should not be set after delete")
+	}
+	if cm.Get("remove") != nil {
+		t.Error("Get(remove) should return nil after delete")
+	}
+	if cm.GetString("keep") != "yes" {
+		t.Error("keep should be unaffected by deleting remove")
+	}
+}
+
+func TestDeleteFromAllLayers(t *testing.T) {
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(configFile, []byte(`filekey = "fromfile"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cm := NewConfigManager()
+	cm.SetConfigFile(configFile)
+	if err := cm.SetConfigType("toml"); err != nil {
+		t.Fatal(err)
+	}
+	cm.SetDefault("filekey", "default")
+	if err := cm.ReadInConfig(); err != nil {
+		t.Fatal(err)
+	}
+	cm.Set("filekey", "override")
+
+	if cm.GetString("filekey") != "override" {
+		t.Fatal("expected override value before delete")
+	}
+
+	cm.Delete("filekey")
+
+	if cm.IsSet("filekey") {
+		t.Error("filekey should not be set after delete from all layers")
+	}
+}
+
+func TestDeleteCaseInsensitive(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("MyKey", "value")
+
+	cm.Delete("MYKEY")
+
+	if cm.IsSet("mykey") {
+		t.Error("delete should be case-insensitive")
+	}
+}
+
+func TestPackageLevelDelete(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("temp", "value")
+	if !IsSet("temp") {
+		t.Fatal("temp should be set")
+	}
+	Delete("temp")
+	if IsSet("temp") {
+		t.Error("temp should not be set after package-level Delete")
+	}
+}
+
+func TestSub(t *testing.T) {
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(configFile, []byte(tomlConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cm := NewConfigManager()
+	cm.SetConfigFile(configFile)
+	if err := cm.SetConfigType("toml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cm.ReadInConfig(); err != nil {
+		t.Fatal(err)
+	}
+
+	sub := cm.Sub("database")
+	if sub == nil {
+		t.Fatal("Sub(database) returned nil")
+	}
+
+	host := sub.GetString("host")
+	if host != "db.example.com" {
+		t.Errorf("Sub(database).GetString(host) = %q, want %q", host, "db.example.com")
+	}
+
+	port := sub.GetInt("port")
+	if port != 5432 {
+		t.Errorf("Sub(database).GetInt(port) = %d, want 5432", port)
+	}
+}
+
+func TestSubNonExistentKey(t *testing.T) {
+	cm := NewConfigManager()
+	cm.SetDefault("simple", "value")
+
+	sub := cm.Sub("nonexistent")
+	if sub != nil {
+		t.Error("Sub(nonexistent) should return nil")
+	}
+}
+
+func TestSubNonMapKey(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("name", "plain-string")
+
+	sub := cm.Sub("name")
+	if sub != nil {
+		t.Error("Sub on a non-map key should return nil")
+	}
+}
+
+func TestSubIsIndependent(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("section", map[string]any{
+		"key1": "val1",
+		"key2": "val2",
+	})
+
+	sub := cm.Sub("section")
+	if sub == nil {
+		t.Fatal("Sub(section) returned nil")
+	}
+
+	// Modifying sub should not affect parent
+	sub.Set("key1", "modified")
+	if sub.GetString("key1") != "modified" {
+		t.Error("sub should reflect the Set")
+	}
+
+	parentSection := cm.Get("section").(map[string]any)
+	if parentSection["key1"] != "val1" {
+		t.Error("modifying sub should not affect parent")
+	}
+}
+
+func TestPackageLevelSub(t *testing.T) {
+	defaultConfigManager = NewConfigManager()
+	Set("db", map[string]any{"host": "localhost", "port": 5432})
+
+	sub := Sub("db")
+	if sub == nil {
+		t.Fatal("package-level Sub returned nil")
+	}
+	if sub.GetString("host") != "localhost" {
+		t.Errorf("Sub(db).GetString(host) = %q, want %q", sub.GetString("host"), "localhost")
+	}
+	if sub.GetInt("port") != 5432 {
+		t.Errorf("Sub(db).GetInt(port) = %d, want 5432", sub.GetInt("port"))
+	}
+}
