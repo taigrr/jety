@@ -308,6 +308,31 @@ func readFile(filename string, fileType configType) (map[string]any, error) {
 	}
 }
 
+// Sub returns a new ConfigManager rooted at the given key. The key must
+// refer to a map value (e.g., from a nested TOML/YAML/JSON section).
+// The returned ConfigManager has the nested map loaded as its default
+// config, and does not inherit the parent's environment prefix, overrides,
+// or config file. Returns nil if the key does not exist or is not a map.
+func (c *ConfigManager) Sub(key string) *ConfigManager {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	v, ok := c.resolve(key)
+	if !ok {
+		return nil
+	}
+	m, ok := v.Value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	sub := NewConfigManager()
+	for k, val := range m {
+		lower := strings.ToLower(k)
+		sub.defaultConfig[lower] = ConfigMap{Key: k, Value: val}
+		sub.combinedConfig[lower] = ConfigMap{Key: k, Value: val}
+	}
+	return sub
+}
+
 func (c *ConfigManager) SetConfigDir(path string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
