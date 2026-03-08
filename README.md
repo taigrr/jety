@@ -68,16 +68,25 @@ timeout = "30s"
 client_id = "abc123"
 ```
 
-Access nested values using `GetStringMap` and type assertions:
+Use `Sub()` to get a scoped ConfigManager for a nested section:
+
+```go
+cloud := jety.Sub("services")
+if cloud != nil {
+    inner := cloud.Sub("cloud")
+    if inner != nil {
+        varValue := inner.GetString("var")      // "xyz"
+        timeout := inner.GetDuration("timeout")  // 30s
+    }
+}
+```
+
+Or access nested values directly with `GetStringMap` and type assertions:
 
 ```go
 services := jety.GetStringMap("services")
 cloud := services["cloud"].(map[string]any)
 varValue := cloud["var"].(string)  // "xyz"
-
-// For deeper nesting
-auth := cloud["auth"].(map[string]any)
-clientID := auth["client_id"].(string)  // "abc123"
 ```
 
 ### Environment Variable Overrides
@@ -124,6 +133,8 @@ export MYAPP_SERVICES_CLOUD_VAR=override_value
 | ------------------------ | ------------------------ |
 | `Set(key, value)`        | Set a value              |
 | `SetDefault(key, value)` | Set a default value      |
+| `Delete(key)`            | Remove a key             |
+| `Sub(key)`               | Get scoped sub-config    |
 | `Get(key)`               | Get raw value            |
 | `GetString(key)`         | Get as string            |
 | `GetInt(key)`            | Get as int               |
