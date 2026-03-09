@@ -88,10 +88,6 @@ func SetString(key string, value string) {
 	defaultConfigManager.SetString(key, value)
 }
 
-func Delete(key string) {
-	defaultConfigManager.Delete(key)
-}
-
 func Sub(key string) *ConfigManager {
 	return defaultConfigManager.Sub(key)
 }
