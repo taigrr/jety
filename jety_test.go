@@ -1646,3 +1646,153 @@ func TestPackageLevelSub(t *testing.T) {
 		t.Errorf("Sub(db).GetInt(port) = %d, want 5432", sub.GetInt("port"))
 	}
 }
+
+func TestDotNotationAccess(t *testing.T) {
+	const tomlWithNested = `
+port = 8080
+
+[services.mas]
+server = "192.168.1.15"
+user = "central"
+disabled = false
+
+[services.salesforce.prod]
+host = "sf.example.com"
+port = 443
+`
+
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "nested.toml")
+	if err := os.WriteFile(configFile, []byte(tomlWithNested), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cm := NewConfigManager()
+	cm.SetConfigFile(configFile)
+	if err := cm.SetConfigType("toml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cm.ReadInConfig(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Top-level key should still work
+	if got := cm.GetInt("port"); got != 8080 {
+		t.Errorf("GetInt(port) = %d, want 8080", got)
+	}
+
+	// Dot notation for nested string
+	if got := cm.GetString("services.mas.server"); got != "192.168.1.15" {
+		t.Errorf("GetString(services.mas.server) = %q, want %q", got, "192.168.1.15")
+	}
+	if got := cm.GetString("services.mas.user"); got != "central" {
+		t.Errorf("GetString(services.mas.user) = %q, want %q", got, "central")
+	}
+
+	// Dot notation for nested bool
+	if got := cm.GetBool("services.mas.disabled"); got != false {
+		t.Errorf("GetBool(services.mas.disabled) = %v, want false", got)
+	}
+
+	// Dot notation for nested map
+	masMap := cm.GetStringMap("services.mas")
+	if masMap == nil {
+		t.Fatal("GetStringMap(services.mas) = nil")
+	}
+	if masMap["server"] != "192.168.1.15" {
+		t.Errorf("services.mas map server = %v, want %q", masMap["server"], "192.168.1.15")
+	}
+
+	// Three levels deep
+	if got := cm.GetString("services.salesforce.prod.host"); got != "sf.example.com" {
+		t.Errorf("GetString(services.salesforce.prod.host) = %q, want %q", got, "sf.example.com")
+	}
+	if got := cm.GetInt("services.salesforce.prod.port"); got != 443 {
+		t.Errorf("GetInt(services.salesforce.prod.port) = %d, want 443", got)
+	}
+
+	// GetStringMap at intermediate level
+	sfProdMap := cm.GetStringMap("services.salesforce.prod")
+	if sfProdMap == nil {
+		t.Fatal("GetStringMap(services.salesforce.prod) = nil")
+	}
+	if sfProdMap["host"] != "sf.example.com" {
+		t.Errorf("salesforce.prod map host = %v, want %q", sfProdMap["host"], "sf.example.com")
+	}
+
+	// Nonexistent nested key should return zero value
+	if got := cm.GetString("services.mas.nonexistent"); got != "" {
+		t.Errorf("GetString(services.mas.nonexistent) = %q, want empty", got)
+	}
+	if got := cm.GetStringMap("services.nonexistent"); got != nil {
+		t.Errorf("GetStringMap(services.nonexistent) = %v, want nil", got)
+	}
+}
+
+func TestDotNotationCaseInsensitive(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("services", map[string]any{
+		"MAS": map[string]any{
+			"Server": "192.168.1.15",
+		},
+	})
+
+	// Should work regardless of case
+	if got := cm.GetString("services.mas.server"); got != "192.168.1.15" {
+		t.Errorf("GetString(services.mas.server) = %q, want %q", got, "192.168.1.15")
+	}
+	if got := cm.GetString("SERVICES.MAS.SERVER"); got != "192.168.1.15" {
+		t.Errorf("GetString(SERVICES.MAS.SERVER) = %q, want %q", got, "192.168.1.15")
+	}
+	if got := cm.GetString("Services.Mas.Server"); got != "192.168.1.15" {
+		t.Errorf("GetString(Services.Mas.Server) = %q, want %q", got, "192.168.1.15")
+	}
+}
+
+func TestDotNotationWithAllGetters(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("config", map[string]any{
+		"nested": map[string]any{
+			"string":  "hello",
+			"int":     42,
+			"int64":   int64(9223372036854775807),
+			"float":   3.14,
+			"bool":    true,
+			"dur":     "30s",
+			"strings": []string{"a", "b", "c"},
+			"ints":    []any{1, 2, 3},
+			"map":     map[string]any{"key": "value"},
+		},
+	})
+
+	if got := cm.Get("config.nested.string"); got != "hello" {
+		t.Errorf("Get(config.nested.string) = %v, want %q", got, "hello")
+	}
+	if got := cm.GetString("config.nested.string"); got != "hello" {
+		t.Errorf("GetString(config.nested.string) = %q, want %q", got, "hello")
+	}
+	if got := cm.GetInt("config.nested.int"); got != 42 {
+		t.Errorf("GetInt(config.nested.int) = %d, want 42", got)
+	}
+	if got := cm.GetInt64("config.nested.int64"); got != 9223372036854775807 {
+		t.Errorf("GetInt64(config.nested.int64) = %d, want 9223372036854775807", got)
+	}
+	if got := cm.GetFloat64("config.nested.float"); got != 3.14 {
+		t.Errorf("GetFloat64(config.nested.float) = %f, want 3.14", got)
+	}
+	if got := cm.GetBool("config.nested.bool"); got != true {
+		t.Errorf("GetBool(config.nested.bool) = %v, want true", got)
+	}
+	if got := cm.GetDuration("config.nested.dur"); got != 30*time.Second {
+		t.Errorf("GetDuration(config.nested.dur) = %v, want 30s", got)
+	}
+	if got := cm.GetStringSlice("config.nested.strings"); len(got) != 3 || got[0] != "a" {
+		t.Errorf("GetStringSlice(config.nested.strings) = %v, want [a b c]", got)
+	}
+	if got := cm.GetIntSlice("config.nested.ints"); len(got) != 3 || got[0] != 1 {
+		t.Errorf("GetIntSlice(config.nested.ints) = %v, want [1 2 3]", got)
+	}
+	if got := cm.GetStringMap("config.nested.map"); got == nil || got["key"] != "value" {
+		t.Errorf("GetStringMap(config.nested.map) = %v, want map[key:value]", got)
+	}
+}

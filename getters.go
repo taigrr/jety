@@ -8,15 +8,69 @@ import (
 )
 
 // resolve looks up a key in combinedConfig, falling back to envConfig.
+// It supports dot notation (e.g., "services.mas.server") to traverse nested maps.
 func (c *ConfigManager) resolve(key string) (ConfigMap, bool) {
 	lower := strings.ToLower(key)
+
+	// First, try direct lookup (for top-level keys or keys without dots)
 	if v, ok := c.combinedConfig[lower]; ok {
 		return v, true
 	}
 	if v, ok := c.envConfig[lower]; ok {
 		return v, true
 	}
+
+	// If key contains dots, try traversing nested maps
+	if strings.Contains(lower, ".") {
+		if v, ok := c.resolveNested(lower, c.combinedConfig); ok {
+			return v, true
+		}
+		if v, ok := c.resolveNested(lower, c.envConfig); ok {
+			return v, true
+		}
+	}
+
 	return ConfigMap{}, false
+}
+
+// resolveNested traverses nested maps using dot-separated key paths.
+func (c *ConfigManager) resolveNested(key string, config map[string]ConfigMap) (ConfigMap, bool) {
+	parts := strings.Split(key, ".")
+	if len(parts) < 2 {
+		return ConfigMap{}, false
+	}
+
+	// Look up the first part in the config
+	firstPart := parts[0]
+	entry, ok := config[firstPart]
+	if !ok {
+		return ConfigMap{}, false
+	}
+
+	// Traverse the remaining parts through nested maps
+	current := entry.Value
+	for i := 1; i < len(parts); i++ {
+		m, ok := current.(map[string]any)
+		if !ok {
+			return ConfigMap{}, false
+		}
+
+		// Try case-insensitive lookup in the nested map
+		part := parts[i]
+		found := false
+		for k, v := range m {
+			if strings.EqualFold(k, part) {
+				current = v
+				found = true
+				break
+			}
+		}
+		if !found {
+			return ConfigMap{}, false
+		}
+	}
+
+	return ConfigMap{Key: key, Value: current}, true
 }
 
 func (c *ConfigManager) Get(key string) any {
