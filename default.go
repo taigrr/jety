@@ -111,3 +111,11 @@ func AllKeys() []string {
 func AllSettings() map[string]any {
 	return defaultConfigManager.AllSettings()
 }
+
+func Unmarshal(target any) error {
+	return defaultConfigManager.Unmarshal(target)
+}
+
+func UnmarshalKey(key string, target any) error {
+	return defaultConfigManager.UnmarshalKey(key, target)
+}

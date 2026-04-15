@@ -15,7 +15,7 @@ Originally built to support [grlx](http://github.com/gogrlx/grlx).
 go get github.com/taigrr/jety
 ```
 
-Requires Go 1.26.1 or later.
+Requires Go 1.26.2 or later.
 
 ## Quick Start
 
@@ -133,7 +133,6 @@ export MYAPP_SERVICES_CLOUD_VAR=override_value
 | ------------------------ | ------------------------ |
 | `Set(key, value)`        | Set a value              |
 | `SetDefault(key, value)` | Set a default value      |
-| `Delete(key)`            | Remove a key             |
 | `Sub(key)`               | Get scoped sub-config    |
 | `Get(key)`               | Get raw value            |
 | `GetString(key)`         | Get as string            |
@@ -148,6 +147,8 @@ export MYAPP_SERVICES_CLOUD_VAR=override_value
 | `IsSet(key)`             | Check if key has a value |
 | `AllKeys()`              | List all known keys      |
 | `AllSettings()`          | Get all values as a map  |
+| `Unmarshal(target)`      | Unmarshal config to struct |
+| `UnmarshalKey(key, target)` | Unmarshal a key to struct |
 
 ### Environment
 
@@ -155,6 +156,45 @@ export MYAPP_SERVICES_CLOUD_VAR=override_value
 | ----------------------- | --------------------------------------------------- |
 | `WithEnvPrefix(prefix)` | Filter env vars by prefix (strips prefix from keys) |
 | `SetEnvPrefix(prefix)`  | Set prefix for env var lookups                      |
+
+## Struct Unmarshaling
+
+Unmarshal your configuration directly into Go structs:
+
+```go
+type Config struct {
+    Host    string `json:"host"`
+    Port    int    `json:"port"`
+    Debug   bool   `json:"debug"`
+}
+
+jety.SetConfigFile("config.json")
+jety.SetConfigType("json")
+jety.ReadInConfig()
+
+var cfg Config
+if err := jety.Unmarshal(&cfg); err != nil {
+    log.Fatal(err)
+}
+```
+
+For nested sections, use `UnmarshalKey`:
+
+```go
+type DatabaseConfig struct {
+    Host string `json:"host"`
+    Port int    `json:"port"`
+    Name string `json:"name"`
+}
+
+var dbCfg DatabaseConfig
+if err := jety.UnmarshalKey("database", &dbCfg); err != nil {
+    log.Fatal(err)
+}
+```
+
+Struct tags use `json:"..."` since the unmarshaling uses JSON round-trip internally.
+Dot notation works with `UnmarshalKey` for deeply nested values (e.g., `"services.api"`).
 
 ## License
 
