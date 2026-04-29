@@ -18,22 +18,23 @@ func (c *ConfigManager) Unmarshal(target any) error {
 // pointer. The key must refer to a map value (e.g., a nested TOML/YAML/JSON
 // section). Supports dot notation for nested keys.
 func (c *ConfigManager) UnmarshalKey(key string, target any) error {
+	if settings := c.GetStringMap(key); settings != nil {
+		return mapToStruct(settings, target)
+	}
+
 	c.mutex.RLock()
 	v, ok := c.resolve(key)
 	c.mutex.RUnlock()
 	if !ok {
 		return fmt.Errorf("key %q not found", key)
 	}
-	m, ok := v.Value.(map[string]any)
-	if !ok {
-		// If the value is not a map, try direct JSON round-trip
-		data, err := json.Marshal(v.Value)
-		if err != nil {
-			return fmt.Errorf("cannot marshal value for key %q: %w", key, err)
-		}
-		return json.Unmarshal(data, target)
+
+	// If the value is not a map, try direct JSON round-trip.
+	data, err := json.Marshal(v.Value)
+	if err != nil {
+		return fmt.Errorf("cannot marshal value for key %q: %w", key, err)
 	}
-	return mapToStruct(m, target)
+	return json.Unmarshal(data, target)
 }
 
 // mapToStruct converts a map[string]any to a struct via JSON round-trip.
