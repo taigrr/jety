@@ -112,7 +112,7 @@ export MYAPP_PORT=9000
 export MYAPP_SERVICES_CLOUD_VAR=override_value
 ```
 
-**Note**: Environment variables override both defaults and config file values for registered keys (keys that appear in defaults or the config file).
+**Note**: Environment variables override both defaults and config file values for registered keys (keys that appear in defaults or the config file). Nested env vars like `SERVICES_CLOUD_VAR` also apply to dot-notation lookups, `GetStringMap`, `AllSettings`, `Unmarshal`, and `UnmarshalKey`.
 
 ## API
 

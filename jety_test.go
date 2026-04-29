@@ -1749,6 +1749,92 @@ func TestDotNotationCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestNestedEnvOverridesDotNotationAndMaps(t *testing.T) {
+	if os.Getenv("TEST_NESTED_ENV_OVERRIDES") == "1" {
+		cm := NewConfigManager()
+		cm.SetDefault("services", map[string]any{
+			"api": map[string]any{
+				"host": "file.example.com",
+				"port": 8080,
+			},
+		})
+
+		if got := cm.GetString("services.api.host"); got != "env.example.com" {
+			fmt.Fprintf(os.Stderr, "GetString(services.api.host) = %q, want %q\n", got, "env.example.com")
+			os.Exit(1)
+		}
+		if got := cm.GetInt("services.api.port"); got != 9090 {
+			fmt.Fprintf(os.Stderr, "GetInt(services.api.port) = %d, want 9090\n", got)
+			os.Exit(1)
+		}
+
+		services := cm.GetStringMap("services")
+		api, ok := services["api"].(map[string]any)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "services.api type = %T, want map[string]any\n", services["api"])
+			os.Exit(1)
+		}
+		if got := api["host"]; got != "env.example.com" {
+			fmt.Fprintf(os.Stderr, "GetStringMap(services)[api][host] = %v, want %q\n", got, "env.example.com")
+			os.Exit(1)
+		}
+		if got := api["port"]; got != "9090" {
+			fmt.Fprintf(os.Stderr, "GetStringMap(services)[api][port] = %v, want %q\n", got, "9090")
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestNestedEnvOverridesDotNotationAndMaps$")
+	cmd.Env = append(os.Environ(),
+		"TEST_NESTED_ENV_OVERRIDES=1",
+		"SERVICES_API_HOST=env.example.com",
+		"SERVICES_API_PORT=9090",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	}
+}
+
+func TestNestedEnvOverridesAllSettings(t *testing.T) {
+	if os.Getenv("TEST_NESTED_ENV_ALL_SETTINGS") == "1" {
+		cm := NewConfigManager()
+		cm.SetDefault("services", map[string]any{
+			"api": map[string]any{
+				"host": "file.example.com",
+			},
+		})
+
+		settings := cm.AllSettings()
+		services, ok := settings["services"].(map[string]any)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "AllSettings()[services] type = %T, want map[string]any\n", settings["services"])
+			os.Exit(1)
+		}
+		api, ok := services["api"].(map[string]any)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "AllSettings()[services][api] type = %T, want map[string]any\n", services["api"])
+			os.Exit(1)
+		}
+		if got := api["host"]; got != "env.example.com" {
+			fmt.Fprintf(os.Stderr, "AllSettings()[services][api][host] = %v, want %q\n", got, "env.example.com")
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestNestedEnvOverridesAllSettings$")
+	cmd.Env = append(os.Environ(),
+		"TEST_NESTED_ENV_ALL_SETTINGS=1",
+		"SERVICES_API_HOST=env.example.com",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	}
+}
+
 func TestDotNotationWithAllGetters(t *testing.T) {
 	cm := NewConfigManager()
 	cm.Set("config", map[string]any{

@@ -7,6 +7,76 @@ import (
 	"time"
 )
 
+func envKeyForPath(key string) string {
+	return strings.ReplaceAll(strings.ToLower(key), ".", "_")
+}
+
+func cloneMap(input map[string]any) map[string]any {
+	cloned := make(map[string]any, len(input))
+	for key, value := range input {
+		switch typed := value.(type) {
+		case map[string]any:
+			cloned[key] = cloneMap(typed)
+		default:
+			cloned[key] = typed
+		}
+	}
+	return cloned
+}
+
+func findMapKeyFold(input map[string]any, needle string) (string, bool) {
+	for key := range input {
+		if strings.EqualFold(key, needle) {
+			return key, true
+		}
+	}
+	return "", false
+}
+
+func applyScopedEnvOverrides(target map[string]any, prefix string, envConfig map[string]ConfigMap) {
+	basePrefix := envKeyForPath(prefix)
+	for envKey, entry := range envConfig {
+		if basePrefix != "" {
+			var ok bool
+			envKey, ok = strings.CutPrefix(envKey, basePrefix+"_")
+			if !ok {
+				continue
+			}
+		}
+		parts := strings.Split(envKey, "_")
+		current := target
+		if len(parts) == 1 {
+			leafKey, ok := findMapKeyFold(current, parts[0])
+			if !ok {
+				continue
+			}
+			current[leafKey] = entry.Value
+			continue
+		}
+		for index := 0; index < len(parts)-1; index++ {
+			matchedKey, ok := findMapKeyFold(current, parts[index])
+			if !ok {
+				current = nil
+				break
+			}
+			next, ok := current[matchedKey].(map[string]any)
+			if !ok {
+				current = nil
+				break
+			}
+			current = next
+		}
+		if current == nil {
+			continue
+		}
+		leafKey, ok := findMapKeyFold(current, parts[len(parts)-1])
+		if !ok {
+			continue
+		}
+		current[leafKey] = entry.Value
+	}
+}
+
 // resolve looks up a key in combinedConfig, falling back to envConfig.
 // It supports dot notation (e.g., "services.mas.server") to traverse nested maps.
 func (c *ConfigManager) resolve(key string) (ConfigMap, bool) {
@@ -20,8 +90,12 @@ func (c *ConfigManager) resolve(key string) (ConfigMap, bool) {
 		return v, true
 	}
 
-	// If key contains dots, try traversing nested maps
+	// If key contains dots, allow underscore-separated env vars to override
+	// nested config paths (e.g. SERVICES_API_PORT -> services.api.port).
 	if strings.Contains(lower, ".") {
+		if v, ok := c.envConfig[envKeyForPath(lower)]; ok {
+			return v, true
+		}
 		if v, ok := c.resolveNested(lower, c.combinedConfig); ok {
 			return v, true
 		}
@@ -168,7 +242,9 @@ func (c *ConfigManager) GetStringMap(key string) map[string]any {
 	}
 	switch val := v.Value.(type) {
 	case map[string]any:
-		return val
+		cloned := cloneMap(val)
+		applyScopedEnvOverrides(cloned, key, c.envConfig)
+		return cloned
 	default:
 		return nil
 	}
