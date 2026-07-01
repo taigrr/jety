@@ -1,9 +1,7 @@
 package jety
 
 import (
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -335,62 +333,46 @@ func TestDefaultUnmarshalKey(t *testing.T) {
 }
 
 func TestUnmarshalNestedEnvOverrides(t *testing.T) {
-	if os.Getenv("TEST_UNMARSHAL_NESTED_ENV") == "1" {
-		cm := NewConfigManager()
-		cm.SetDefault("services", map[string]any{
-			"api": map[string]any{
-				"host": "file.example.com",
-				"port": 8080,
-			},
-		})
+	t.Setenv("SERVICES_API_HOST", "env.example.com")
+	t.Setenv("SERVICES_API_PORT", "9090")
 
-		type Config struct {
-			Services struct {
-				API struct {
-					Host string `json:"host"`
-					Port string `json:"port"`
-				} `json:"api"`
-			} `json:"services"`
-		}
+	cm := NewConfigManager()
+	cm.SetDefault("services", map[string]any{
+		"api": map[string]any{
+			"host": "file.example.com",
+			"port": 8080,
+		},
+	})
 
-		var cfg Config
-		if err := cm.Unmarshal(&cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Unmarshal failed: %v\n", err)
-			os.Exit(1)
-		}
-		if cfg.Services.API.Host != "env.example.com" {
-			fmt.Fprintf(os.Stderr, "cfg.Services.API.Host = %q, want %q\n", cfg.Services.API.Host, "env.example.com")
-			os.Exit(1)
-		}
-		if cfg.Services.API.Port != "9090" {
-			fmt.Fprintf(os.Stderr, "cfg.Services.API.Port = %q, want %q\n", cfg.Services.API.Port, "9090")
-			os.Exit(1)
-		}
-
-		type APIConfig struct {
-			Host string `json:"host"`
-			Port string `json:"port"`
-		}
-		var apiCfg APIConfig
-		if err := cm.UnmarshalKey("services.api", &apiCfg); err != nil {
-			fmt.Fprintf(os.Stderr, "UnmarshalKey failed: %v\n", err)
-			os.Exit(1)
-		}
-		if apiCfg.Host != "env.example.com" || apiCfg.Port != "9090" {
-			fmt.Fprintf(os.Stderr, "UnmarshalKey result = %#v, want env overrides\n", apiCfg)
-			os.Exit(1)
-		}
-		os.Exit(0)
+	type Config struct {
+		Services struct {
+			API struct {
+				Host string `json:"host"`
+				Port string `json:"port"`
+			} `json:"api"`
+		} `json:"services"`
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=^TestUnmarshalNestedEnvOverrides$")
-	cmd.Env = append(os.Environ(),
-		"TEST_UNMARSHAL_NESTED_ENV=1",
-		"SERVICES_API_HOST=env.example.com",
-		"SERVICES_API_PORT=9090",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	var cfg Config
+	if err := cm.Unmarshal(&cfg); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if cfg.Services.API.Host != "env.example.com" {
+		t.Errorf("cfg.Services.API.Host = %q, want %q", cfg.Services.API.Host, "env.example.com")
+	}
+	if cfg.Services.API.Port != "9090" {
+		t.Errorf("cfg.Services.API.Port = %q, want %q", cfg.Services.API.Port, "9090")
+	}
+
+	type APIConfig struct {
+		Host string `json:"host"`
+		Port string `json:"port"`
+	}
+	var apiCfg APIConfig
+	if err := cm.UnmarshalKey("services.api", &apiCfg); err != nil {
+		t.Fatalf("UnmarshalKey failed: %v", err)
+	}
+	if apiCfg.Host != "env.example.com" || apiCfg.Port != "9090" {
+		t.Errorf("UnmarshalKey result = %#v, want env overrides", apiCfg)
 	}
 }

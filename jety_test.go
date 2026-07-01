@@ -1,9 +1,7 @@
 package jety
 
 import (
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -580,14 +578,9 @@ func TestSetConfigTypeInvalid(t *testing.T) {
 
 func TestEnvPrefix(t *testing.T) {
 	// Set env vars BEFORE creating ConfigManager
-	os.Setenv("TESTAPP_PORT", "3000")
-	os.Setenv("TESTAPP_HOST", "envhost")
-	os.Setenv("OTHER_VAR", "other")
-	defer func() {
-		os.Unsetenv("TESTAPP_PORT")
-		os.Unsetenv("TESTAPP_HOST")
-		os.Unsetenv("OTHER_VAR")
-	}()
+	t.Setenv("TESTAPP_PORT", "3000")
+	t.Setenv("TESTAPP_HOST", "envhost")
+	t.Setenv("OTHER_VAR", "other")
 
 	// Create new manager AFTER setting env vars, then apply prefix
 	cm := NewConfigManager().WithEnvPrefix("TESTAPP_")
@@ -605,8 +598,7 @@ func TestEnvPrefix(t *testing.T) {
 }
 
 func TestEnvVarWithEqualsInValue(t *testing.T) {
-	os.Setenv("TEST_CONN", "host=localhost;user=admin")
-	defer os.Unsetenv("TEST_CONN")
+	t.Setenv("TEST_CONN", "host=localhost;user=admin")
 
 	cm := NewConfigManager()
 	if got := cm.GetString("test_conn"); got != "host=localhost;user=admin" {
@@ -615,8 +607,7 @@ func TestEnvVarWithEqualsInValue(t *testing.T) {
 }
 
 func TestEnvOverridesDefault(t *testing.T) {
-	os.Setenv("MYPORT", "5000")
-	defer os.Unsetenv("MYPORT")
+	t.Setenv("MYPORT", "5000")
 
 	cm := NewConfigManager()
 	cm.SetDefault("myport", 8080)
@@ -627,8 +618,7 @@ func TestEnvOverridesDefault(t *testing.T) {
 }
 
 func TestEnvOverridesConfigFile(t *testing.T) {
-	os.Setenv("PORT", "5000")
-	defer os.Unsetenv("PORT")
+	t.Setenv("PORT", "5000")
 
 	dir := t.TempDir()
 	configFile := filepath.Join(dir, "config.yaml")
@@ -1323,100 +1313,57 @@ func TestDeeplyNestedWriteConfig(t *testing.T) {
 }
 
 func TestSetEnvPrefixOverridesDefault(t *testing.T) {
-	// Subprocess test: env vars must exist before NewConfigManager is called.
-	if os.Getenv("TEST_SET_ENV_PREFIX") == "1" {
-		cm := NewConfigManager()
-		cm.SetEnvPrefix("MYAPP_")
-		cm.SetDefault("port", 8080)
+	t.Setenv("MYAPP_PORT", "9999")
+	t.Setenv("MYAPP_HOST", "envhost")
+	t.Setenv("OTHER", "should_not_see")
 
-		if got := cm.GetInt("port"); got != 9999 {
-			fmt.Fprintf(os.Stderr, "GetInt(port) = %d, want 9999\n", got)
-			os.Exit(1)
-		}
-		if got := cm.GetString("host"); got != "envhost" {
-			fmt.Fprintf(os.Stderr, "GetString(host) = %q, want %q\n", got, "envhost")
-			os.Exit(1)
-		}
-		// Unprefixed var should not be visible.
-		if got := cm.GetString("other"); got != "" {
-			fmt.Fprintf(os.Stderr, "GetString(other) = %q, want empty\n", got)
-			os.Exit(1)
-		}
-		os.Exit(0)
+	cm := NewConfigManager()
+	cm.SetEnvPrefix("MYAPP_")
+	cm.SetDefault("port", 8080)
+
+	if got := cm.GetInt("port"); got != 9999 {
+		t.Errorf("GetInt(port) = %d, want 9999", got)
 	}
-
-	cmd := exec.Command(os.Args[0], "-test.run=^TestSetEnvPrefixOverridesDefault$")
-	cmd.Env = append(os.Environ(),
-		"TEST_SET_ENV_PREFIX=1",
-		"MYAPP_PORT=9999",
-		"MYAPP_HOST=envhost",
-		"OTHER=should_not_see",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	if got := cm.GetString("host"); got != "envhost" {
+		t.Errorf("GetString(host) = %q, want %q", got, "envhost")
+	}
+	// Unprefixed var should not be visible.
+	if got := cm.GetString("other"); got != "" {
+		t.Errorf("GetString(other) = %q, want empty", got)
 	}
 }
 
 func TestSetEnvPrefixWithSetDefault(t *testing.T) {
 	// SetDefault should pick up prefixed env vars after SetEnvPrefix.
-	if os.Getenv("TEST_SET_ENV_PREFIX_DEFAULT") == "1" {
-		cm := NewConfigManager()
-		cm.SetEnvPrefix("APP_")
-		cm.SetDefault("database_host", "localhost")
+	t.Setenv("APP_DATABASE_HOST", "db.example.com")
 
-		if got := cm.GetString("database_host"); got != "db.example.com" {
-			fmt.Fprintf(os.Stderr, "GetString(database_host) = %q, want %q\n", got, "db.example.com")
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
+	cm := NewConfigManager()
+	cm.SetEnvPrefix("APP_")
+	cm.SetDefault("database_host", "localhost")
 
-	cmd := exec.Command(os.Args[0], "-test.run=^TestSetEnvPrefixWithSetDefault$")
-	cmd.Env = append(os.Environ(),
-		"TEST_SET_ENV_PREFIX_DEFAULT=1",
-		"APP_DATABASE_HOST=db.example.com",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	if got := cm.GetString("database_host"); got != "db.example.com" {
+		t.Errorf("GetString(database_host) = %q, want %q", got, "db.example.com")
 	}
 }
 
 func TestPackageLevelSetEnvPrefixOverrides(t *testing.T) {
 	// Package-level SetEnvPrefix should work the same way.
-	if os.Getenv("TEST_PKG_SET_ENV_PREFIX") == "1" {
-		// Reset the default manager to pick up our env vars.
-		defaultConfigManager = NewConfigManager()
-		SetEnvPrefix("PKG_")
-		SetDefault("val", "default")
+	t.Setenv("PKG_VAL", "from_env")
 
-		if got := GetString("val"); got != "from_env" {
-			fmt.Fprintf(os.Stderr, "GetString(val) = %q, want %q\n", got, "from_env")
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
+	defaultConfigManager = NewConfigManager()
+	SetEnvPrefix("PKG_")
+	SetDefault("val", "default")
 
-	cmd := exec.Command(os.Args[0], "-test.run=^TestPackageLevelSetEnvPrefixOverrides$")
-	cmd.Env = append(os.Environ(),
-		"TEST_PKG_SET_ENV_PREFIX=1",
-		"PKG_VAL=from_env",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	if got := GetString("val"); got != "from_env" {
+		t.Errorf("GetString(val) = %q, want %q", got, "from_env")
 	}
 }
 
 func TestPrecedenceChain(t *testing.T) {
 	// Verify: Set > env > file > defaults
-	os.Setenv("PORT", "5000")
-	os.Setenv("HOST", "envhost")
-	os.Setenv("LOG", "envlog")
-	defer os.Unsetenv("PORT")
-	defer os.Unsetenv("HOST")
-	defer os.Unsetenv("LOG")
+	t.Setenv("PORT", "5000")
+	t.Setenv("HOST", "envhost")
+	t.Setenv("LOG", "envlog")
 
 	dir := t.TempDir()
 	configFile := filepath.Join(dir, "config.yaml")
@@ -1499,8 +1446,7 @@ func TestAllSettings(t *testing.T) {
 
 func TestEnvOverridesFileWithoutDefault(t *testing.T) {
 	// Bug fix: env should override file even when no default is set for that key
-	os.Setenv("HOST", "envhost")
-	defer os.Unsetenv("HOST")
+	t.Setenv("HOST", "envhost")
 
 	dir := t.TempDir()
 	configFile := filepath.Join(dir, "config.yaml")
@@ -1750,88 +1696,58 @@ func TestDotNotationCaseInsensitive(t *testing.T) {
 }
 
 func TestNestedEnvOverridesDotNotationAndMaps(t *testing.T) {
-	if os.Getenv("TEST_NESTED_ENV_OVERRIDES") == "1" {
-		cm := NewConfigManager()
-		cm.SetDefault("services", map[string]any{
-			"api": map[string]any{
-				"host": "file.example.com",
-				"port": 8080,
-			},
-		})
+	t.Setenv("SERVICES_API_HOST", "env.example.com")
+	t.Setenv("SERVICES_API_PORT", "9090")
 
-		if got := cm.GetString("services.api.host"); got != "env.example.com" {
-			fmt.Fprintf(os.Stderr, "GetString(services.api.host) = %q, want %q\n", got, "env.example.com")
-			os.Exit(1)
-		}
-		if got := cm.GetInt("services.api.port"); got != 9090 {
-			fmt.Fprintf(os.Stderr, "GetInt(services.api.port) = %d, want 9090\n", got)
-			os.Exit(1)
-		}
+	cm := NewConfigManager()
+	cm.SetDefault("services", map[string]any{
+		"api": map[string]any{
+			"host": "file.example.com",
+			"port": 8080,
+		},
+	})
 
-		services := cm.GetStringMap("services")
-		api, ok := services["api"].(map[string]any)
-		if !ok {
-			fmt.Fprintf(os.Stderr, "services.api type = %T, want map[string]any\n", services["api"])
-			os.Exit(1)
-		}
-		if got := api["host"]; got != "env.example.com" {
-			fmt.Fprintf(os.Stderr, "GetStringMap(services)[api][host] = %v, want %q\n", got, "env.example.com")
-			os.Exit(1)
-		}
-		if got := api["port"]; got != "9090" {
-			fmt.Fprintf(os.Stderr, "GetStringMap(services)[api][port] = %v, want %q\n", got, "9090")
-			os.Exit(1)
-		}
-		os.Exit(0)
+	if got := cm.GetString("services.api.host"); got != "env.example.com" {
+		t.Errorf("GetString(services.api.host) = %q, want %q", got, "env.example.com")
+	}
+	if got := cm.GetInt("services.api.port"); got != 9090 {
+		t.Errorf("GetInt(services.api.port) = %d, want 9090", got)
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=^TestNestedEnvOverridesDotNotationAndMaps$")
-	cmd.Env = append(os.Environ(),
-		"TEST_NESTED_ENV_OVERRIDES=1",
-		"SERVICES_API_HOST=env.example.com",
-		"SERVICES_API_PORT=9090",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	services := cm.GetStringMap("services")
+	api, ok := services["api"].(map[string]any)
+	if !ok {
+		t.Fatalf("services.api type = %T, want map[string]any", services["api"])
+	}
+	if got := api["host"]; got != "env.example.com" {
+		t.Errorf("GetStringMap(services)[api][host] = %v, want %q", got, "env.example.com")
+	}
+	if got := api["port"]; got != "9090" {
+		t.Errorf("GetStringMap(services)[api][port] = %v, want %q", got, "9090")
 	}
 }
 
 func TestNestedEnvOverridesAllSettings(t *testing.T) {
-	if os.Getenv("TEST_NESTED_ENV_ALL_SETTINGS") == "1" {
-		cm := NewConfigManager()
-		cm.SetDefault("services", map[string]any{
-			"api": map[string]any{
-				"host": "file.example.com",
-			},
-		})
+	t.Setenv("SERVICES_API_HOST", "env.example.com")
 
-		settings := cm.AllSettings()
-		services, ok := settings["services"].(map[string]any)
-		if !ok {
-			fmt.Fprintf(os.Stderr, "AllSettings()[services] type = %T, want map[string]any\n", settings["services"])
-			os.Exit(1)
-		}
-		api, ok := services["api"].(map[string]any)
-		if !ok {
-			fmt.Fprintf(os.Stderr, "AllSettings()[services][api] type = %T, want map[string]any\n", services["api"])
-			os.Exit(1)
-		}
-		if got := api["host"]; got != "env.example.com" {
-			fmt.Fprintf(os.Stderr, "AllSettings()[services][api][host] = %v, want %q\n", got, "env.example.com")
-			os.Exit(1)
-		}
-		os.Exit(0)
+	cm := NewConfigManager()
+	cm.SetDefault("services", map[string]any{
+		"api": map[string]any{
+			"host": "file.example.com",
+		},
+	})
+
+	settings := cm.AllSettings()
+	services, ok := settings["services"].(map[string]any)
+	if !ok {
+		t.Fatalf("AllSettings()[services] type = %T, want map[string]any", settings["services"])
 	}
-
-	cmd := exec.Command(os.Args[0], "-test.run=^TestNestedEnvOverridesAllSettings$")
-	cmd.Env = append(os.Environ(),
-		"TEST_NESTED_ENV_ALL_SETTINGS=1",
-		"SERVICES_API_HOST=env.example.com",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("subprocess failed: %v\n%s", err, out)
+	api, ok := services["api"].(map[string]any)
+	if !ok {
+		t.Fatalf("AllSettings()[services][api] type = %T, want map[string]any", services["api"])
+	}
+	if got := api["host"]; got != "env.example.com" {
+		t.Errorf("AllSettings()[services][api][host] = %v, want %q", got, "env.example.com")
 	}
 }
 
