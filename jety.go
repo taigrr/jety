@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -154,12 +155,8 @@ func (c *ConfigManager) collapse() {
 	defer c.mutex.Unlock()
 	ccm := make(map[string]ConfigMap)
 	// Precedence (highest to lowest): overrides (Set) > env > file > defaults
-	for k, v := range c.defaultConfig {
-		ccm[k] = v
-	}
-	for k, v := range c.fileConfig {
-		ccm[k] = v
-	}
+	maps.Copy(ccm, c.defaultConfig)
+	maps.Copy(ccm, c.fileConfig)
 	for k, v := range c.envConfig {
 		if _, inDefaults := c.defaultConfig[k]; inDefaults {
 			ccm[k] = v
@@ -167,9 +164,7 @@ func (c *ConfigManager) collapse() {
 			ccm[k] = v
 		}
 	}
-	for k, v := range c.overrideConfig {
-		ccm[k] = v
-	}
+	maps.Copy(ccm, c.overrideConfig)
 	c.combinedConfig = ccm
 }
 

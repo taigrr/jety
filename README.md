@@ -15,7 +15,7 @@ Originally built to support [grlx](http://github.com/gogrlx/grlx).
 go get github.com/taigrr/jety
 ```
 
-Requires Go 1.26.2 or later.
+Requires Go 1.26.5 or later.
 
 ## Quick Start
 

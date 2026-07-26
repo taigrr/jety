@@ -53,8 +53,8 @@ func applyScopedEnvOverrides(target map[string]any, prefix string, envConfig map
 			current[leafKey] = entry.Value
 			continue
 		}
-		for index := 0; index < len(parts)-1; index++ {
-			matchedKey, ok := findMapKeyFold(current, parts[index])
+		for _, part := range parts[:len(parts)-1] {
+			matchedKey, ok := findMapKeyFold(current, part)
 			if !ok {
 				current = nil
 				break
@@ -123,25 +123,18 @@ func (c *ConfigManager) resolveNested(key string, config map[string]ConfigMap) (
 
 	// Traverse the remaining parts through nested maps
 	current := entry.Value
-	for i := 1; i < len(parts); i++ {
+	for _, part := range parts[1:] {
 		m, ok := current.(map[string]any)
 		if !ok {
 			return ConfigMap{}, false
 		}
 
 		// Try case-insensitive lookup in the nested map
-		part := parts[i]
-		found := false
-		for k, v := range m {
-			if strings.EqualFold(k, part) {
-				current = v
-				found = true
-				break
-			}
-		}
-		if !found {
+		matchedKey, ok := findMapKeyFold(m, part)
+		if !ok {
 			return ConfigMap{}, false
 		}
+		current = m[matchedKey]
 	}
 
 	return ConfigMap{Key: key, Value: current}, true
