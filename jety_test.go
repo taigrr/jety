@@ -1346,6 +1346,30 @@ func TestSetEnvPrefixWithSetDefault(t *testing.T) {
 	}
 }
 
+func TestSetEnvPrefixRecollapsesExistingDefaults(t *testing.T) {
+	t.Setenv("APP_PORT", "9090")
+
+	cm := NewConfigManager()
+	cm.SetDefault("port", 8080)
+	cm.SetEnvPrefix("APP_")
+
+	if got := cm.GetInt("port"); got != 9090 {
+		t.Errorf("GetInt(port) = %d, want 9090", got)
+	}
+}
+
+func TestWithEnvPrefixRecollapsesExistingDefaults(t *testing.T) {
+	t.Setenv("APP_PORT", "9090")
+
+	cm := NewConfigManager()
+	cm.SetDefault("port", 8080)
+	cm.WithEnvPrefix("APP_")
+
+	if got := cm.GetInt("port"); got != 9090 {
+		t.Errorf("GetInt(port) = %d, want 9090", got)
+	}
+}
+
 func TestPackageLevelSetEnvPrefixOverrides(t *testing.T) {
 	// Package-level SetEnvPrefix should work the same way.
 	t.Setenv("PKG_VAL", "from_env")
@@ -1356,6 +1380,18 @@ func TestPackageLevelSetEnvPrefixOverrides(t *testing.T) {
 
 	if got := GetString("val"); got != "from_env" {
 		t.Errorf("GetString(val) = %q, want %q", got, "from_env")
+	}
+}
+
+func TestPackageLevelSetEnvPrefixRecollapsesExistingDefaults(t *testing.T) {
+	t.Setenv("PKG_PORT", "9090")
+
+	defaultConfigManager = NewConfigManager()
+	SetDefault("port", 8080)
+	SetEnvPrefix("PKG_")
+
+	if got := GetInt("port"); got != 9090 {
+		t.Errorf("GetInt(port) = %d, want 9090", got)
 	}
 }
 
