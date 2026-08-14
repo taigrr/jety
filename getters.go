@@ -14,14 +14,28 @@ func envKeyForPath(key string) string {
 func cloneMap(input map[string]any) map[string]any {
 	cloned := make(map[string]any, len(input))
 	for key, value := range input {
-		switch typed := value.(type) {
-		case map[string]any:
-			cloned[key] = cloneMap(typed)
-		default:
-			cloned[key] = typed
-		}
+		cloned[key] = cloneValue(value)
 	}
 	return cloned
+}
+
+func cloneValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return cloneMap(typed)
+	case []any:
+		cloned := make([]any, len(typed))
+		for i, item := range typed {
+			cloned[i] = cloneValue(item)
+		}
+		return cloned
+	case []string:
+		return append([]string(nil), typed...)
+	case []int:
+		return append([]int(nil), typed...)
+	default:
+		return typed
+	}
 }
 
 func findMapKeyFold(input map[string]any, needle string) (string, bool) {
@@ -252,7 +266,7 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 	}
 	switch val := v.Value.(type) {
 	case []string:
-		return val
+		return append([]string(nil), val...)
 	case []any:
 		var ret []string
 		for _, v := range val {
@@ -365,7 +379,7 @@ func (c *ConfigManager) GetIntSlice(key string) []int {
 	}
 	switch val := v.Value.(type) {
 	case []int:
-		return val
+		return append([]int(nil), val...)
 	case []any:
 		var ret []int
 		for _, v := range val {

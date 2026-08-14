@@ -140,12 +140,7 @@ func (c *ConfigManager) AllSettings() map[string]any {
 	defer c.mutex.RUnlock()
 	result := make(map[string]any, len(c.combinedConfig))
 	for key, value := range c.combinedConfig {
-		switch typed := value.Value.(type) {
-		case map[string]any:
-			result[key] = cloneMap(typed)
-		default:
-			result[key] = typed
-		}
+		result[key] = cloneValue(value.Value)
 	}
 	applyScopedEnvOverrides(result, "", c.envConfig)
 	return result
