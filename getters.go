@@ -31,9 +31,19 @@ func cloneValue(value any) any {
 		}
 		return cloned
 	case []string:
-		return append([]string(nil), typed...)
+		if typed == nil {
+			return typed
+		}
+		cloned := make([]string, len(typed))
+		copy(cloned, typed)
+		return cloned
 	case []int:
-		return append([]int(nil), typed...)
+		if typed == nil {
+			return typed
+		}
+		cloned := make([]int, len(typed))
+		copy(cloned, typed)
+		return cloned
 	default:
 		return cloneReflect(value)
 	}
@@ -302,7 +312,12 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 	}
 	switch val := v.Value.(type) {
 	case []string:
-		return append([]string(nil), val...)
+		if val == nil {
+			return val
+		}
+		ret := make([]string, len(val))
+		copy(ret, val)
+		return ret
 	case []any:
 		var ret []string
 		for _, v := range val {
@@ -415,7 +430,12 @@ func (c *ConfigManager) GetIntSlice(key string) []int {
 	}
 	switch val := v.Value.(type) {
 	case []int:
-		return append([]int(nil), val...)
+		if val == nil {
+			return val
+		}
+		ret := make([]int, len(val))
+		copy(ret, val)
+		return ret
 	case []any:
 		var ret []int
 		for _, v := range val {
