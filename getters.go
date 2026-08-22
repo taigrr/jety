@@ -2,6 +2,7 @@ package jety
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -34,7 +35,33 @@ func cloneValue(value any) any {
 	case []int:
 		return append([]int(nil), typed...)
 	default:
-		return typed
+		return cloneReflect(value)
+	}
+}
+
+func cloneReflect(value any) any {
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Slice:
+		if rv.IsNil() {
+			return value
+		}
+		cloned := reflect.MakeSlice(rv.Type(), rv.Len(), rv.Len())
+		for i := range rv.Len() {
+			cloned.Index(i).Set(reflect.ValueOf(cloneValue(rv.Index(i).Interface())))
+		}
+		return cloned.Interface()
+	case reflect.Map:
+		if rv.IsNil() {
+			return value
+		}
+		cloned := reflect.MakeMapWithSize(rv.Type(), rv.Len())
+		for _, key := range rv.MapKeys() {
+			cloned.SetMapIndex(key, reflect.ValueOf(cloneValue(rv.MapIndex(key).Interface())))
+		}
+		return cloned.Interface()
+	default:
+		return value
 	}
 }
 

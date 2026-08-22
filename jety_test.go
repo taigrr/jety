@@ -1840,6 +1840,24 @@ func TestAllSettingsReturnsSliceCopies(t *testing.T) {
 	}
 }
 
+func TestAllSettingsReturnsReflectedCopies(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("int64s", []int64{1, 2})
+	cm.Set("maps", []map[string]any{{"k": "original"}})
+
+	settings := cm.AllSettings()
+	settings["int64s"].([]int64)[0] = 99
+	settings["maps"].([]map[string]any)[0]["k"] = "mutated"
+
+	settings = cm.AllSettings()
+	if got := settings["int64s"].([]int64)[0]; got != 1 {
+		t.Errorf("AllSettings()[int64s][0] = %v, want 1", got)
+	}
+	if got := settings["maps"].([]map[string]any)[0]["k"]; got != "original" {
+		t.Errorf("AllSettings()[maps][0][k] = %v, want %q", got, "original")
+	}
+}
+
 func TestDotNotationWithAllGetters(t *testing.T) {
 	cm := NewConfigManager()
 	cm.Set("config", map[string]any{
