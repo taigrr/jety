@@ -1181,6 +1181,18 @@ func TestPackageLevelGetStringSlice(t *testing.T) {
 	}
 }
 
+func TestGetStringSliceReturnsCopy(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("s", []string{"a", "b"})
+
+	got := cm.GetStringSlice("s")
+	got[0] = "mutated"
+
+	if got := cm.GetStringSlice("s"); got[0] != "a" {
+		t.Errorf("GetStringSlice() after mutation = %v, want first value unchanged", got)
+	}
+}
+
 func TestGetStringNonStringValue(t *testing.T) {
 	cm := NewConfigManager()
 	cm.Set("num", 42)
@@ -1211,6 +1223,18 @@ func TestGetIntSliceInt64Values(t *testing.T) {
 	got := cm.GetIntSlice("key")
 	if len(got) != 2 || got[0] != 10 || got[1] != 20 {
 		t.Errorf("GetIntSlice(int64) = %v, want [10 20]", got)
+	}
+}
+
+func TestGetIntSliceReturnsCopy(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("key", []int{1, 2})
+
+	got := cm.GetIntSlice("key")
+	got[0] = 99
+
+	if got := cm.GetIntSlice("key"); got[0] != 1 {
+		t.Errorf("GetIntSlice() after mutation = %v, want first value unchanged", got)
 	}
 }
 
@@ -1346,6 +1370,30 @@ func TestSetEnvPrefixWithSetDefault(t *testing.T) {
 	}
 }
 
+func TestSetEnvPrefixRecollapsesExistingDefaults(t *testing.T) {
+	t.Setenv("APP_PORT", "9090")
+
+	cm := NewConfigManager()
+	cm.SetDefault("port", 8080)
+	cm.SetEnvPrefix("APP_")
+
+	if got := cm.GetInt("port"); got != 9090 {
+		t.Errorf("GetInt(port) = %d, want 9090", got)
+	}
+}
+
+func TestWithEnvPrefixRecollapsesExistingDefaults(t *testing.T) {
+	t.Setenv("APP_PORT", "9090")
+
+	cm := NewConfigManager()
+	cm.SetDefault("port", 8080)
+	cm.WithEnvPrefix("APP_")
+
+	if got := cm.GetInt("port"); got != 9090 {
+		t.Errorf("GetInt(port) = %d, want 9090", got)
+	}
+}
+
 func TestPackageLevelSetEnvPrefixOverrides(t *testing.T) {
 	// Package-level SetEnvPrefix should work the same way.
 	t.Setenv("PKG_VAL", "from_env")
@@ -1356,6 +1404,18 @@ func TestPackageLevelSetEnvPrefixOverrides(t *testing.T) {
 
 	if got := GetString("val"); got != "from_env" {
 		t.Errorf("GetString(val) = %q, want %q", got, "from_env")
+	}
+}
+
+func TestPackageLevelSetEnvPrefixRecollapsesExistingDefaults(t *testing.T) {
+	t.Setenv("PKG_PORT", "9090")
+
+	defaultConfigManager = NewConfigManager()
+	SetDefault("port", 8080)
+	SetEnvPrefix("PKG_")
+
+	if got := GetInt("port"); got != 9090 {
+		t.Errorf("GetInt(port) = %d, want 9090", got)
 	}
 }
 
@@ -1748,6 +1808,53 @@ func TestNestedEnvOverridesAllSettings(t *testing.T) {
 	}
 	if got := api["host"]; got != "env.example.com" {
 		t.Errorf("AllSettings()[services][api][host] = %v, want %q", got, "env.example.com")
+	}
+}
+
+func TestAllSettingsReturnsSliceCopies(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("values", []any{"a", map[string]any{"nested": "original"}})
+	cm.Set("strings", []string{"x", "y"})
+	cm.Set("ints", []int{1, 2})
+
+	settings := cm.AllSettings()
+	values := settings["values"].([]any)
+	values[0] = "mutated"
+	values[1].(map[string]any)["nested"] = "mutated"
+	settings["strings"].([]string)[0] = "mutated"
+	settings["ints"].([]int)[0] = 99
+
+	settings = cm.AllSettings()
+	values = settings["values"].([]any)
+	if values[0] != "a" {
+		t.Errorf("AllSettings()[values][0] = %v, want %q", values[0], "a")
+	}
+	if got := values[1].(map[string]any)["nested"]; got != "original" {
+		t.Errorf("AllSettings()[values][1][nested] = %v, want %q", got, "original")
+	}
+	if got := settings["strings"].([]string)[0]; got != "x" {
+		t.Errorf("AllSettings()[strings][0] = %v, want %q", got, "x")
+	}
+	if got := settings["ints"].([]int)[0]; got != 1 {
+		t.Errorf("AllSettings()[ints][0] = %v, want 1", got)
+	}
+}
+
+func TestAllSettingsReturnsReflectedCopies(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("int64s", []int64{1, 2})
+	cm.Set("maps", []map[string]any{{"k": "original"}})
+
+	settings := cm.AllSettings()
+	settings["int64s"].([]int64)[0] = 99
+	settings["maps"].([]map[string]any)[0]["k"] = "mutated"
+
+	settings = cm.AllSettings()
+	if got := settings["int64s"].([]int64)[0]; got != 1 {
+		t.Errorf("AllSettings()[int64s][0] = %v, want 1", got)
+	}
+	if got := settings["maps"].([]map[string]any)[0]["k"]; got != "original" {
+		t.Errorf("AllSettings()[maps][0][k] = %v, want %q", got, "original")
 	}
 }
 

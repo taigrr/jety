@@ -91,6 +91,7 @@ func (c *ConfigManager) WithEnvPrefix(prefix string) *ConfigManager {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.envConfig = parseEnv(prefix)
+	c.collapseLocked()
 	return c
 }
 
@@ -139,12 +140,7 @@ func (c *ConfigManager) AllSettings() map[string]any {
 	defer c.mutex.RUnlock()
 	result := make(map[string]any, len(c.combinedConfig))
 	for key, value := range c.combinedConfig {
-		switch typed := value.Value.(type) {
-		case map[string]any:
-			result[key] = cloneMap(typed)
-		default:
-			result[key] = typed
-		}
+		result[key] = cloneValue(value.Value)
 	}
 	applyScopedEnvOverrides(result, "", c.envConfig)
 	return result
@@ -153,6 +149,10 @@ func (c *ConfigManager) AllSettings() map[string]any {
 func (c *ConfigManager) collapse() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	c.collapseLocked()
+}
+
+func (c *ConfigManager) collapseLocked() {
 	ccm := make(map[string]ConfigMap)
 	// Precedence (highest to lowest): overrides (Set) > env > file > defaults
 	maps.Copy(ccm, c.defaultConfig)
@@ -234,6 +234,7 @@ func (c *ConfigManager) SetEnvPrefix(prefix string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.envConfig = parseEnv(prefix)
+	c.collapseLocked()
 }
 
 func (c *ConfigManager) ReadInConfig() error {

@@ -2,6 +2,7 @@ package jety
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -14,14 +15,54 @@ func envKeyForPath(key string) string {
 func cloneMap(input map[string]any) map[string]any {
 	cloned := make(map[string]any, len(input))
 	for key, value := range input {
-		switch typed := value.(type) {
-		case map[string]any:
-			cloned[key] = cloneMap(typed)
-		default:
-			cloned[key] = typed
-		}
+		cloned[key] = cloneValue(value)
 	}
 	return cloned
+}
+
+func cloneValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return cloneMap(typed)
+	case []any:
+		cloned := make([]any, len(typed))
+		for i, item := range typed {
+			cloned[i] = cloneValue(item)
+		}
+		return cloned
+	case []string:
+		return append([]string(nil), typed...)
+	case []int:
+		return append([]int(nil), typed...)
+	default:
+		return cloneReflect(value)
+	}
+}
+
+func cloneReflect(value any) any {
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Slice:
+		if rv.IsNil() {
+			return value
+		}
+		cloned := reflect.MakeSlice(rv.Type(), rv.Len(), rv.Len())
+		for i := range rv.Len() {
+			cloned.Index(i).Set(reflect.ValueOf(cloneValue(rv.Index(i).Interface())))
+		}
+		return cloned.Interface()
+	case reflect.Map:
+		if rv.IsNil() {
+			return value
+		}
+		cloned := reflect.MakeMapWithSize(rv.Type(), rv.Len())
+		for _, key := range rv.MapKeys() {
+			cloned.SetMapIndex(key, reflect.ValueOf(cloneValue(rv.MapIndex(key).Interface())))
+		}
+		return cloned.Interface()
+	default:
+		return value
+	}
 }
 
 func findMapKeyFold(input map[string]any, needle string) (string, bool) {
@@ -252,7 +293,7 @@ func (c *ConfigManager) GetStringSlice(key string) []string {
 	}
 	switch val := v.Value.(type) {
 	case []string:
-		return val
+		return append([]string(nil), val...)
 	case []any:
 		var ret []string
 		for _, v := range val {
@@ -365,7 +406,7 @@ func (c *ConfigManager) GetIntSlice(key string) []int {
 	}
 	switch val := v.Value.(type) {
 	case []int:
-		return val
+		return append([]int(nil), val...)
 	case []any:
 		var ret []int
 		for _, v := range val {
