@@ -48,7 +48,11 @@ func cloneReflect(value any) any {
 		}
 		cloned := reflect.MakeSlice(rv.Type(), rv.Len(), rv.Len())
 		for i := range rv.Len() {
-			cloned.Index(i).Set(reflect.ValueOf(cloneValue(rv.Index(i).Interface())))
+			cv := cloneValue(rv.Index(i).Interface())
+			if cv == nil {
+				continue
+			}
+			cloned.Index(i).Set(reflect.ValueOf(cv))
 		}
 		return cloned.Interface()
 	case reflect.Map:
@@ -57,7 +61,12 @@ func cloneReflect(value any) any {
 		}
 		cloned := reflect.MakeMapWithSize(rv.Type(), rv.Len())
 		for _, key := range rv.MapKeys() {
-			cloned.SetMapIndex(key, reflect.ValueOf(cloneValue(rv.MapIndex(key).Interface())))
+			cv := cloneValue(rv.MapIndex(key).Interface())
+			if cv == nil {
+				cloned.SetMapIndex(key, reflect.Zero(rv.Type().Elem()))
+				continue
+			}
+			cloned.SetMapIndex(key, reflect.ValueOf(cv))
 		}
 		return cloned.Interface()
 	default:

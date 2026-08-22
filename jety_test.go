@@ -1858,6 +1858,21 @@ func TestAllSettingsReturnsReflectedCopies(t *testing.T) {
 	}
 }
 
+func TestAllSettingsReflectHandlesNilElements(t *testing.T) {
+	cm := NewConfigManager()
+	cm.Set("errs", []error{nil})
+	cm.Set("emap", map[string]error{"k": nil})
+
+	settings := cm.AllSettings()
+	if got := settings["errs"].([]error); len(got) != 1 || got[0] != nil {
+		t.Errorf("AllSettings()[errs] = %v, want [<nil>]", got)
+	}
+	got := settings["emap"].(map[string]error)
+	if _, ok := got["k"]; !ok || got["k"] != nil {
+		t.Errorf("AllSettings()[emap] = %v, want key k with nil value", got)
+	}
+}
+
 func TestDotNotationWithAllGetters(t *testing.T) {
 	cm := NewConfigManager()
 	cm.Set("config", map[string]any{
