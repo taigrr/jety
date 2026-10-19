@@ -222,7 +222,8 @@ func (c *ConfigManager) GetBool(key string) bool {
 	case bool:
 		return val
 	case string:
-		return strings.EqualFold(val, "true")
+		parsed, err := strconv.ParseBool(val)
+		return err == nil && parsed
 	case int:
 		return val != 0
 	case float32:
