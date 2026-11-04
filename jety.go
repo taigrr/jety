@@ -102,14 +102,12 @@ func (c *ConfigManager) ConfigFileUsed() string {
 }
 
 // IsSet checks whether a key has been set in any configuration source.
+// Like Get, it supports case-insensitive dot paths and nested environment keys.
+// A key with a nil value is still considered set.
 func (c *ConfigManager) IsSet(key string) bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	lower := strings.ToLower(key)
-	if _, ok := c.combinedConfig[lower]; ok {
-		return true
-	}
-	_, ok := c.envConfig[lower]
+	_, ok := c.resolve(key)
 	return ok
 }
 
