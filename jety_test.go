@@ -1925,3 +1925,32 @@ func TestDotNotationWithAllGetters(t *testing.T) {
 		t.Errorf("GetStringMap(config.nested.map) = %v, want map[key:value]", got)
 	}
 }
+
+func TestSubNestedValuesAreIndependent(t *testing.T) {
+	parent := NewConfigManager()
+	parent.Set("section", map[string]any{
+		"nested": map[string]any{"host": "original"},
+		"tags":   []string{"original"},
+	})
+	sub := parent.Sub("section")
+	if sub == nil {
+		t.Fatal("Sub(section) returned nil")
+	}
+	sub.Get("nested").(map[string]any)["host"] = "child"
+	sub.Get("tags").([]string)[0] = "child"
+	if got := parent.GetString("section.nested.host"); got != "original" {
+		t.Errorf("child mutation changed parent host to %q", got)
+	}
+	if got := parent.GetStringSlice("section.tags")[0]; got != "original" {
+		t.Errorf("child mutation changed parent tag to %q", got)
+	}
+
+	parent.Get("section.nested").(map[string]any)["host"] = "parent"
+	parent.Get("section.tags").([]string)[0] = "parent"
+	if got := sub.GetString("nested.host"); got != "child" {
+		t.Errorf("parent mutation changed child host to %q", got)
+	}
+	if got := sub.GetStringSlice("tags")[0]; got != "child" {
+		t.Errorf("parent mutation changed child tag to %q", got)
+	}
+}
