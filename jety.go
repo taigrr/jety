@@ -312,7 +312,8 @@ func readFile(filename string, fileType configType) (map[string]any, error) {
 // refer to a map value (e.g., from a nested TOML/YAML/JSON section).
 // The returned ConfigManager has the nested map loaded as its default
 // config, and does not inherit the parent's environment prefix, overrides,
-// or config file. Returns nil if the key does not exist or is not a map.
+// or config file. Nested maps and slices are copied so changes to them do not
+// affect the parent. Returns nil if the key does not exist or is not a map.
 func (c *ConfigManager) Sub(key string) *ConfigManager {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -326,6 +327,7 @@ func (c *ConfigManager) Sub(key string) *ConfigManager {
 	}
 	sub := NewConfigManager()
 	for k, val := range m {
+		val = cloneValue(val)
 		lower := strings.ToLower(k)
 		sub.defaultConfig[lower] = ConfigMap{Key: k, Value: val}
 		sub.combinedConfig[lower] = ConfigMap{Key: k, Value: val}
